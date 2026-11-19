@@ -3,7 +3,7 @@ name = "specter"
 version = "0.1.0"
 description = "Small cross-platform hardware monitor with a transparent always-on-top panel"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 dependencies = [
     "psutil>=5.9",
     "platformdirs>=4.0",

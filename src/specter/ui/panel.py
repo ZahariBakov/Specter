@@ -7,11 +7,11 @@ import tkinter as tk
 from typing import Callable
 
 from specter.core.models import Snapshot
+from specter.ui.popup import PopupMenu
 from specter.ui.widgets import BG, BORDER, MetricTile
 
 OPACITY_STEPS = [1.0, 0.85, 0.7, 0.55, 0.4]
 COLUMNS = 2
-
 
 class PanelWindow:
     """Frameless panel. Drag with the left mouse button, right-click for the menu."""
@@ -43,18 +43,13 @@ class PanelWindow:
         self._drag_start: tuple[int, int] | None = None
         self._opacity = tk.DoubleVar(value=opacity)
 
-        self._menu = tk.Menu(root, tearoff=False)
-        opacity_menu = tk.Menu(self._menu, tearoff=False)
-        for step in OPACITY_STEPS:
-            opacity_menu.add_radiobutton(
-                label=f"{int(step * 100)} %",
-                variable=self._opacity,
-                value=step,
-                command=lambda s=step: self.set_opacity(s),
-            )
-        self._menu.add_cascade(label="Opacity", menu=opacity_menu)
-        self._menu.add_separator()
-        self._menu.add_command(label="Quit", command=self._quit)
+        self._menu = PopupMenu(
+            root,
+            OPACITY_STEPS,
+            get_opacity=self._opacity.get,
+            on_opacity=self.set_opacity,
+            on_quit=self._quit,
+        )
 
         self._bind_mouse(self._frame)
         self.set_opacity(opacity)
@@ -112,7 +107,9 @@ class PanelWindow:
             target.bind("<Button-3>", self._show_menu)
 
     def _drag_begin(self, event: tk.Event) -> None:
+        self._hide_menu()
         self._drag_start = (event.x_root - self.root.winfo_x(), event.y_root - self.root.winfo_y())
+        self.root.configure(cursor="fleur")  # 4-way "move" cursor while dragging
 
     def _drag_move(self, event: tk.Event) -> None:
         if self._drag_start is not None:
@@ -121,12 +118,13 @@ class PanelWindow:
 
     def _drag_end(self, _event: tk.Event) -> None:
         self._drag_start = None
+        self.root.configure(cursor="")  # back to the normal arrow
 
     def _show_menu(self, event: tk.Event) -> None:
-        try:
-            self._menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            self._menu.grab_release()
+        self._menu.open(event.x_root, event.y_root)
+
+    def _hide_menu(self, _event: tk.Event | None = None) -> None:
+        self._menu.close()
 
     def _quit(self) -> None:
         if self._on_quit:

@@ -14,10 +14,10 @@ Inspired by tools like Speccy and GPU Temp, but cross-platform and focused on a 
 
 ## Running from source
 
-Requires Python 3.10+.
+Requires Python 3.8+ with Tkinter. On Linux, prefer the system Python (`python3-tk`): its Tk draws smooth fonts and uses your cursor theme, while the Tk bundled with uv-managed Pythons does not.
 
 ```bash
-python -m venv .venv            # or: uv venv --python 3.12
+python -m venv .venv            # or: uv venv --python /usr/bin/python3
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"         # or: uv pip install -e ".[dev]"
 specter                         # or: python -m specter
