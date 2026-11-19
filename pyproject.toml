@@ -1,0 +1,27 @@
+[project]
+name = "specter"
+version = "0.1.0"
+description = "Small cross-platform hardware monitor with a transparent always-on-top panel"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "psutil>=5.9",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.gui-scripts]
+specter = "specter.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/specter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -10,7 +10,21 @@ Inspired by tools like Speccy and GPU Temp, but cross-platform and focused on a 
 
 ## Status
 
-🚧 Early planning — not usable yet.
+🚧 Early development: a minimal panel shows CPU load and RAM usage.
+
+## Running from source
+
+Requires Python 3.10+.
+
+```bash
+python -m venv .venv            # or: uv venv --python 3.12
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"         # or: uv pip install -e ".[dev]"
+specter                         # or: python -m specter
+```
+
+Drag the panel with the left mouse button. Right-click it to change opacity or quit.
+Run the tests with `pytest`.
 
 ## Planned features
 
