@@ -32,11 +32,15 @@ def main() -> int:
 
     def on_quit() -> None:
         config.pos_x, config.pos_y = panel.position()
+        config.width, config.height = panel.size() or (None, None)
         config.save()
         poller.stop()
         root.destroy()
 
-    panel = PanelWindow(root, opacity=config.opacity, on_opacity=on_opacity, on_quit=on_quit)
+    size = (config.width, config.height) if config.width and config.height else None
+    panel = PanelWindow(
+        root, opacity=config.opacity, size=size, on_opacity=on_opacity, on_quit=on_quit
+    )
 
     has_saved_pos = config.pos_x is not None and config.pos_y is not None
     if has_saved_pos:
@@ -57,7 +61,7 @@ def main() -> int:
             panel.show_snapshot(latest)
             if not placed:
                 root.update_idletasks()
-                panel.move_to(root.winfo_screenwidth() - root.winfo_reqwidth() - 20, 20)
+                panel.move_to(root.winfo_screenwidth() - panel.current_size()[0] - 20, 20)
                 root.deiconify()
                 placed = True
         root.after(UI_CHECK_MS, pump)

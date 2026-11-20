@@ -45,3 +45,11 @@ def test_poller_collects_from_all_providers():
 
     snapshot = Poller([Fake(), Broken()], on_snapshot=lambda s: None).poll_once()
     assert snapshot.readings["fake.temp"].value == 42.0
+
+
+def test_config_size_needs_both_values(tmp_path):
+    path = tmp_path / "config.json"
+    Config(width=300, height=120).save(path)
+    assert (Config.load(path).width, Config.load(path).height) == (300, 120)
+    path.write_text('{"width": 300}')
+    assert (Config.load(path).width, Config.load(path).height) == (None, None)

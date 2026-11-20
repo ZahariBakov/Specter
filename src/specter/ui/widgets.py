@@ -109,7 +109,3 @@ class MetricTile(tk.Frame):
         if primary.maximum is not None and primary.unit != "%":
             sub_parts.insert(0, f"of {primary.maximum:.1f}{primary.unit}")
         self._sub.config(text="  ".join(sub_parts) or " ")
-
-    def widgets(self) -> tuple[tk.Misc, ...]:
-        """Everything inside the tile, so the panel can bind drag/menu events."""
-        return (self, self._title, self._value, self._bar, self._sub)

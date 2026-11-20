@@ -20,6 +20,8 @@ class Config:
     interval_ms: int = 1000
     pos_x: int | None = None  # None = default corner
     pos_y: int | None = None
+    width: int | None = None  # None = fit the content
+    height: int | None = None
 
     @classmethod
     def load(cls, path: Path = CONFIG_PATH) -> Config:
@@ -34,6 +36,10 @@ class Config:
         cfg = cls(**{k: v for k, v in data.items() if k in known})
         cfg.opacity = min(1.0, max(0.2, float(cfg.opacity)))
         cfg.interval_ms = max(250, int(cfg.interval_ms))
+        if cfg.width is None or cfg.height is None:
+            cfg.width = cfg.height = None
+        else:  # the panel enlarges it to its minimum size if needed
+            cfg.width, cfg.height = max(50, int(cfg.width)), max(50, int(cfg.height))
         return cfg
 
     def save(self, path: Path = CONFIG_PATH) -> None:
