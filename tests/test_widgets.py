@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from specter.core.models import Reading
 from specter.ui.panel import tile_sort_key
-from specter.ui.widgets import format_rate, format_secondary, pick_primary
+from specter.ui.widgets import (
+    PRIMARY,
+    SECONDARY,
+    format_rate,
+    format_secondary,
+    pick_primary,
+    slim_parts,
+)
 
 
 def test_format_rate():
@@ -31,3 +38,17 @@ def test_tile_order():
     assert sorted(groups, key=tile_sort_key) == [
         "cpu", "gpu0", "gpu1", "ram", "disk", "net", "fan", "zzz"
     ]
+
+
+def test_slim_parts_primary_then_others():
+    load = Reading("cpu.load", "CPU", 8, "%", 100.0)
+    temp = Reading("cpu.temp", "CPU", 35, "°C")
+    assert slim_parts([temp, load]) == [("8%", PRIMARY), ("35°C", SECONDARY)]
+
+
+def test_slim_parts_rates_keep_their_marks():
+    down = Reading("net.down", "Net", 0.011, "MB/s", short="↓")
+    up = Reading("net.up", "Net", 2.0, "MB/s", short="↑")
+    fan = Reading("fan.rpm", "Fan", 2683, "RPM")
+    assert slim_parts([down, up]) == [("↓ 11 KB/s", PRIMARY), ("↑ 2.0 MB/s", PRIMARY)]
+    assert slim_parts([fan]) == [("2683 rpm", PRIMARY)]

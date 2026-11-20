@@ -5,7 +5,7 @@ screenshot check, and is committed by the user before the next one starts.
 
 **Done so far:** CPU load + RAM, CPU temperature + fan (`linux_hwmon.py`), drag, opacity, popup
 menu, config, resizable panel (row / column / grid, then 2 → 1 tiles with ‹ › arrows),
-Phase 1 (NVIDIA GPU, rate tiles, disk and network speed).
+Phase 1 (NVIDIA GPU, rate tiles, disk and network speed), slim strip at taskbar height.
 
 Defaults used below for the open decisions (change them before the step that needs them):
 

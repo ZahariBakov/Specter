@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from specter.core.models import Reading
 
@@ -71,6 +71,32 @@ def pick_primary(readings: list[Reading]) -> Optional[Reading]:
     return None
 
 
+def reading_fraction(reading: Reading) -> float:
+    """How full a reading is (0..1): % / 100 or value / maximum. 0 if neither."""
+    if reading.unit == "%":
+        return reading.value / 100
+    if reading.maximum:
+        return reading.value / reading.maximum
+    return 0.0
+
+
+# Kinds of text in a slim tile.
+PRIMARY, SECONDARY = "primary", "secondary"
+
+
+def slim_parts(readings: list[Reading]) -> List[Tuple[str, str]]:
+    """Texts for a one-line tile, as (text, kind).
+
+    CPU: [("8%", PRIMARY), ("35°C", SECONDARY)]. A device without a primary (fan,
+    disk, net) shows every value as primary, with its mark: [("↓ 11 KB/s", PRIMARY), ...].
+    """
+    primary = pick_primary(readings)
+    if primary is None:
+        return [(f"{r.short} {format_value(r)}".strip(), PRIMARY) for r in readings]
+    others = [(format_value(r), SECONDARY) for r in readings if r is not primary]
+    return [(format_value(primary), PRIMARY)] + others
+
+
 class SegmentBar(tk.Canvas):
     """A bar made of small blocks: ▮▮▮▯▯▯▯▯"""
 
@@ -124,12 +150,7 @@ class MetricTile(tk.Frame):
 
         self._value.config(text=format_value(primary))
 
-        if primary.unit == "%":
-            fraction = primary.value / 100
-        elif primary.maximum:
-            fraction = primary.value / primary.maximum
-        else:
-            fraction = 0.0
+        fraction = reading_fraction(primary)
         self._bar.set_fraction(fraction)
         self._value.config(fg=level_colour(fraction) if fraction >= 0.6 else VALUE_FG)
 
@@ -168,6 +189,32 @@ class RateTile(tk.Frame):
                 value.pack(side="left")
                 row = self._rows[reading.key] = (mark, value)
             row[1].config(text=format_value(reading))
+
+
+class SlimTile(tk.Frame):
+    """A device on one line, for the slim strip: "CPU 8% 35°C", "NET ↓ 11 KB/s ↑ 1 KB/s"."""
+
+    def __init__(self, master: tk.Misc, title: str) -> None:
+        super().__init__(master, bg=BG)
+        tk.Label(
+            self, text=title.upper(), bg=BG, fg=LABEL_FG, font=("TkDefaultFont", 8, "bold")
+        ).pack(side="left", padx=(0, 6))
+        self._labels: list[tk.Label] = []
+
+    def update_readings(self, readings: list[Reading]) -> None:
+        primary = pick_primary(readings)
+        fraction = reading_fraction(primary) if primary else 0.0
+        for i, (text, kind) in enumerate(slim_parts(readings)):
+            if i == len(self._labels):
+                label = tk.Label(self, bg=BG, padx=0)
+                label.pack(side="left", padx=(0 if i == 0 else 6, 0))
+                self._labels.append(label)
+            if kind == PRIMARY:
+                fg = level_colour(fraction) if fraction >= 0.6 else VALUE_FG
+                font = ("TkDefaultFont", 10, "bold")
+            else:
+                fg, font = SUB_FG, ("TkDefaultFont", 9)
+            self._labels[i].config(text=text, fg=fg, font=font)
 
 
 def make_tile(master: tk.Misc, readings: list[Reading]) -> tk.Frame:

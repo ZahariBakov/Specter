@@ -8,16 +8,19 @@ import tkinter as tk
 from typing import Callable, Tuple
 
 from specter.core.models import Snapshot
-from specter.ui.layout import GAP_X, GAP_Y, choose_layout, grid_size
+from specter.ui.layout import GAP_X, GAP_Y, choose_layout, fit_row, grid_size
 from specter.ui.popup import PopupMenu
-from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, make_tile
+from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile
 
 OPACITY_STEPS = [1.0, 0.85, 0.7, 0.55, 0.4]
 DEFAULT_COLUMNS = 2  # layout used until the user resizes the panel
 PAD_X, PAD_Y = 14, 12  # frame padding
 CHROME_W, CHROME_H = 2 * (PAD_X + 1), 2 * (PAD_Y + 1)  # padding + 1 px border
+SLIM_PAD_X, SLIM_PAD_Y = 8, 3  # frame padding in the slim strip
+SLIM_CHROME_W, SLIM_CHROME_H = 2 * (SLIM_PAD_X + 1), 2 * (SLIM_PAD_Y + 1)
 TILE_ORDER = ("cpu", "gpu", "ram", "disk", "net", "fan")  # unknown devices go last
 EDGE = 6  # px along the window edge that start a resize instead of a move
+SLIM_EDGE = 4  # the same in the slim strip, which is only ~26 px tall
 ARROW_GAP = 8
 
 # (horizontal edge, vertical edge) -> cursor. -1 = left/top, 1 = right/bottom.
@@ -49,6 +52,9 @@ class PanelWindow:
     right-click for the menu. The tiles rearrange to fit the window: one row,
     one column or a grid. When not all fit, fewer are shown (down to one) with
     ‹ › arrows to cycle through them.
+
+    Made shorter than one tile, the panel turns into a slim strip (about taskbar
+    height) with one line per device: "CPU 8% 35°C   RAM 9.9GB ...".
     """
 
     def __init__(
@@ -76,12 +82,17 @@ class PanelWindow:
         self._frame.pack(fill="both", expand=True)
 
         self._tiles: dict[str, tk.Frame] = {}
+        self._slim_tiles: dict[str, SlimTile] = {}  # the same devices, one line each
         self._cell: Size = (1, 1)  # largest tile seen so far (only grows, so the layout doesn't flicker)
+        self._slim_widths: dict[str, int] = {}  # widest each slim tile has been
+        self._slim_h = 1  # tallest slim tile
+        self._slim = False  # showing the slim strip
         self._size: Size | None = size  # None = fit the content (user never resized)
         self._applied: Size | None = None  # size last given to the window
         self._layout: Size | None = None  # (visible tiles, columns)
         self._first = 0  # first visible tile when not all fit
-        self._arrows = (self._make_arrow("‹", -1), self._make_arrow("›", 1))
+        self._big_arrows = (self._make_arrow("‹", -1, 16), self._make_arrow("›", 1, 16))
+        self._slim_arrows = (self._make_arrow("‹", -1, 11), self._make_arrow("›", 1, 11))
 
         self._drag_start: tuple[int, int] | None = None
         self._resize_start: tuple | None = None
@@ -120,8 +131,10 @@ class PanelWindow:
             if tile is None:
                 tile = make_tile(self._frame, readings)
                 self._tiles[group] = tile
+                self._slim_tiles[group] = SlimTile(self._frame, readings[0].label)
                 added = True
             tile.update_readings(readings)
+            self._slim_tiles[group].update_readings(readings)
 
         if not self._tiles:
             return
@@ -130,8 +143,13 @@ class PanelWindow:
             max(self._cell[0], max(t.winfo_reqwidth() for t in self._tiles.values())),
             max(self._cell[1], max(t.winfo_reqheight() for t in self._tiles.values())),
         )
-        if added or cell != self._cell:
-            self._cell = cell
+        slim_widths = {
+            group: max(self._slim_widths.get(group, 0), tile.winfo_reqwidth())
+            for group, tile in self._slim_tiles.items()
+        }
+        slim_h = max(self._slim_h, max(t.winfo_reqheight() for t in self._slim_tiles.values()))
+        if added or (cell, slim_widths, slim_h) != (self._cell, self._slim_widths, self._slim_h):
+            self._cell, self._slim_widths, self._slim_h = cell, slim_widths, slim_h
             self._relayout(force=added)
 
     # --- size and layout ----------------------------------------------------
@@ -147,39 +165,66 @@ class PanelWindow:
         self._size = (width, height)
         self._relayout()
 
-    def _arrows_width(self) -> int:
-        return 2 * (max(a.winfo_reqwidth() for a in self._arrows) + ARROW_GAP)
+    def _is_slim(self, height: int) -> bool:
+        """Too short for one normal tile: show the slim strip."""
+        return height < self._cell[1] + CHROME_H
 
-    def min_size(self) -> Size:
-        """One tile, plus the arrows if there is more than one tile."""
-        cell_w, cell_h = self._cell
+    def _arrows_width(self, slim: bool) -> int:
+        arrows = self._slim_arrows if slim else self._big_arrows
+        return 2 * (max(a.winfo_reqwidth() for a in arrows) + ARROW_GAP)
+
+    def min_size(self, height: int | None = None) -> Size:
+        """Smallest window: one slim tile high, and one tile (plus the arrows if there
+        is more than one tile) wide. With `height`, the smallest width at that height.
+        """
+        slim = height is None or self._is_slim(height)
+        cell_w = max(self._slim_widths.values(), default=1) if slim else self._cell[0]
         if len(self._tiles) > 1:
-            cell_w += self._arrows_width()
-        return cell_w + CHROME_W, cell_h + CHROME_H
+            cell_w += self._arrows_width(slim)
+        chrome_w = SLIM_CHROME_W if slim else CHROME_W
+        return cell_w + chrome_w, self._slim_h + SLIM_CHROME_H
 
     def _relayout(self, force: bool = False) -> None:
         count = len(self._tiles)
         if count == 0:
             return
-        cell_w, cell_h = self._cell
         if self._size is None:
+            slim = False
+            cell_w, cell_h = self._cell
             columns = min(DEFAULT_COLUMNS, count)
             need_w, need_h = grid_size(count, columns, cell_w, cell_h)
             size = (need_w + CHROME_W, need_h + CHROME_H)
             layout = (count, columns)
         else:
-            min_w, min_h = self.min_size()
-            size = (max(self._size[0], min_w), max(self._size[1], min_h))
+            _, min_h = self.min_size()
+            height = max(self._size[1], min_h)
+            min_w, _ = self.min_size(height)
+            size = (max(self._size[0], min_w), height)
             self._size = size
-            layout = choose_layout(
-                count,
-                cell_w,
-                cell_h,
-                size[0] - CHROME_W,
-                size[1] - CHROME_H,
-                self._arrows_width(),
-            )
+            slim = self._is_slim(height)
+            if slim:  # one row, each tile as wide as it needs
+                widths = [self._slim_widths[g] for g in sorted(self._slim_widths, key=tile_sort_key)]
+                visible = fit_row(
+                    widths, size[0] - SLIM_CHROME_W, self._arrows_width(True), self._first % count
+                )
+                layout = (visible, visible)
+            else:
+                layout = choose_layout(
+                    count,
+                    self._cell[0],
+                    self._cell[1],
+                    size[0] - CHROME_W,
+                    size[1] - CHROME_H,
+                    self._arrows_width(False),
+                )
 
+        if slim != self._slim:
+            self._slim = slim
+            if slim:
+                self._frame.configure(padx=SLIM_PAD_X, pady=SLIM_PAD_Y)
+            else:
+                self._frame.configure(padx=PAD_X, pady=PAD_Y)
+            force = True
         if size != self._applied:
             self._applied = size
             self.root.geometry(f"{size[0]}x{size[1]}")
@@ -188,10 +233,12 @@ class PanelWindow:
             self._place_tiles()
 
     def _place_tiles(self) -> None:
-        tiles = [self._tiles[group] for group in sorted(self._tiles, key=tile_sort_key)]
         frame = self._frame
-        for widget in tiles + list(self._arrows):
+        for widget in frame.grid_slaves():
             widget.grid_forget()
+        source = self._slim_tiles if self._slim else self._tiles
+        tiles = [source[group] for group in sorted(source, key=tile_sort_key)]
+        arrows = self._slim_arrows if self._slim else self._big_arrows
         for i in range(len(tiles) + 3):
             frame.columnconfigure(i, weight=0)
             frame.rowconfigure(i, weight=0)
@@ -204,8 +251,8 @@ class PanelWindow:
         if cycling:
             self._first %= len(tiles)
             shown = [tiles[(self._first + i) % len(tiles)] for i in range(visible)]
-            self._arrows[0].grid(row=0, column=0, rowspan=rows, padx=(0, ARROW_GAP))
-            self._arrows[1].grid(row=0, column=columns + 1, rowspan=rows, padx=(ARROW_GAP, 0))
+            arrows[0].grid(row=0, column=0, rowspan=rows, padx=(0, ARROW_GAP))
+            arrows[1].grid(row=0, column=columns + 1, rowspan=rows, padx=(ARROW_GAP, 0))
         else:
             shown = tiles
 
@@ -214,7 +261,8 @@ class PanelWindow:
             tile.grid(
                 row=row,
                 column=column + offset,
-                sticky="" if cycling else "nw",  # centred between the arrows
+                # Centred between the arrows; slim tiles centred vertically in the strip.
+                sticky="" if cycling else "w" if self._slim else "nw",
                 padx=(0 if column == 0 else GAP_X, 0),
                 pady=(0 if row == 0 else GAP_Y, 0),
             )
@@ -224,13 +272,13 @@ class PanelWindow:
         for row in range(rows):
             frame.rowconfigure(row, weight=1)
 
-    def _make_arrow(self, text: str, step: int) -> tk.Label:
+    def _make_arrow(self, text: str, step: int, font_size: int) -> tk.Label:
         arrow = tk.Label(
             self._frame,
             text=text,
             bg=BG,
             fg=LABEL_FG,
-            font=("TkDefaultFont", 16, "bold"),
+            font=("TkDefaultFont", font_size, "bold"),
             padx=2,
             cursor="hand2",
         )
@@ -247,7 +295,7 @@ class PanelWindow:
     def _cycle(self, step: int) -> None:
         if self._layout and self._layout[0] < len(self._tiles):
             self._first = (self._first + step) % len(self._tiles)
-            self._place_tiles()
+            self._relayout(force=True)  # the slim strip may fit a different number of tiles
 
     # --- opacity ------------------------------------------------------------
 
@@ -274,8 +322,9 @@ class PanelWindow:
         x = event.x_root - self.root.winfo_rootx()
         y = event.y_root - self.root.winfo_rooty()
         width, height = self.root.winfo_width(), self.root.winfo_height()
-        ex = -1 if x < EDGE else 1 if x >= width - EDGE else 0
-        ey = -1 if y < EDGE else 1 if y >= height - EDGE else 0
+        edge = SLIM_EDGE if self._slim else EDGE
+        ex = -1 if x < edge else 1 if x >= width - edge else 0
+        ey = -1 if y < edge else 1 if y >= height - edge else 0
         return ex, ey
 
     def _set_cursor(self, cursor: str) -> None:
@@ -316,19 +365,20 @@ class PanelWindow:
     def _resize_to(self, event: tk.Event) -> None:
         (ex, ey), px, py, x, y, width, height = self._resize_start
         dx, dy = event.x_root - px, event.y_root - py
-        min_w, min_h = self.min_size()
-        if ex == 1:
-            width = max(min_w, width + dx)
-        elif ex == -1:
-            new_w = max(min_w, width - dx)
-            x += width - new_w  # the left edge moves, the right edge stays
-            width = new_w
+        _, min_h = self.min_size()
         if ey == 1:
             height = max(min_h, height + dy)
         elif ey == -1:
             new_h = max(min_h, height - dy)
             y += height - new_h
             height = new_h
+        min_w, _ = self.min_size(height)  # the slim strip can be narrower
+        if ex == 1:
+            width = max(min_w, width + dx)
+        elif ex == -1:
+            new_w = max(min_w, width - dx)
+            x += width - new_w  # the left edge moves, the right edge stays
+            width = new_w
         self._size = self._applied = (width, height)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         self._relayout()

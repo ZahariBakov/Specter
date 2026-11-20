@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from specter.ui.layout import GAP_X, GAP_Y, NO_FIT, choose_columns, choose_layout, grid_size
+from specter.ui.layout import GAP_X, GAP_Y, NO_FIT, choose_columns, choose_layout, fit_row, grid_size
 
 ARROWS = 40
 
@@ -56,3 +56,20 @@ def test_layout_shrinks_to_one():
 
 def test_layout_with_no_tiles():
     assert choose_layout(0, CELL_W, CELL_H, 500, 500, ARROWS) == (0, 1)
+
+
+def test_fit_row_all_when_they_fit():
+    assert fit_row([100, 50, 80], 230 + 2 * GAP_X, ARROWS) == 3
+    assert fit_row([], 500, ARROWS) == 0
+
+
+def test_fit_row_fills_space_next_to_arrows_from_first():
+    widths = [100, 50, 80, 120]
+    width = ARROWS + 130 + GAP_X  # room for 50 + 80, but not 100 + 50
+    assert fit_row(widths, width, ARROWS, first=0) == 1
+    assert fit_row(widths, width, ARROWS, first=1) == 2
+    assert fit_row(widths, width, ARROWS, first=3) == 1  # wraps: 120, then 100 is too much
+
+
+def test_fit_row_shows_at_least_one():
+    assert fit_row([300, 50], 100, ARROWS) == 1

@@ -49,3 +49,24 @@ def choose_layout(
         if columns != NO_FIT:
             return visible, columns
     return min(1, count), 1
+
+
+def fit_row(widths: list[int], width: int, arrows_w: int = 0, first: int = 0) -> int:
+    """How many tiles of different widths fit in one row (the slim strip).
+
+    All of them if they fit. Otherwise as many as fit next to the ‹ › arrows,
+    starting at tile `first` and wrapping around, but at least one.
+    """
+    count = len(widths)
+    if count == 0:
+        return 0
+    if sum(widths) + (count - 1) * GAP_X <= width:
+        return count
+    used = visible = 0
+    for i in range(count):
+        need = widths[(first + i) % count] + (GAP_X if visible else 0)
+        if used + need > width - arrows_w:
+            break
+        used += need
+        visible += 1
+    return max(1, visible)
