@@ -10,6 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+nvidia = ["nvidia-ml-py>=11.495"]
 dev = ["pytest>=8.0"]
 
 [project.gui-scripts]

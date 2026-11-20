@@ -14,6 +14,7 @@ class Reading:
     value: float
     unit: str  # "%", "°C", "MB/s" ...
     maximum: float | None = None  # for bars; None = no bar
+    short: str = ""  # small mark before the value in tiles without a bar, e.g. "↓"
 
 
 @dataclass

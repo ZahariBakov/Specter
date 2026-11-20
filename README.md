@@ -10,7 +10,8 @@ Inspired by tools like Speccy and GPU Temp, but cross-platform and focused on a 
 
 ## Status
 
-🚧 Early development: a minimal panel shows CPU load and RAM usage.
+🚧 Early development. The panel shows CPU load and temperature, NVIDIA GPU load / memory /
+temperature, RAM, disk and network speed, and fan speed (Linux).
 
 ## Running from source
 
@@ -19,11 +20,16 @@ Requires Python 3.8+ with Tkinter. On Linux, prefer the system Python (`python3-
 ```bash
 python -m venv .venv            # or: uv venv --python /usr/bin/python3
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"         # or: uv pip install -e ".[dev]"
+pip install -e ".[dev,nvidia]"  # or: uv pip install -e ".[dev,nvidia]"
 specter                         # or: python -m specter
 ```
 
-Drag the panel with the left mouse button. Right-click it to change opacity or quit.
+The `nvidia` extra installs `nvidia-ml-py` for NVIDIA GPU sensors. Without it, or without an
+NVIDIA driver, the GPU tile is simply not shown.
+
+Drag the panel with the left mouse button, or drag its edges to resize it: the tiles rearrange
+into a row, a column or a grid, and a small panel shows fewer tiles with ‹ › arrows to cycle.
+Right-click it to change opacity or quit.
 Run the tests with `pytest`.
 
 ## Planned features

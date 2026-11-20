@@ -35,7 +35,13 @@ class Poller:
 
     def stop(self) -> None:
         self._stop.set()
-        self._thread.join(timeout=2)
+        if self._thread.is_alive():
+            self._thread.join(timeout=2)
+        for provider in self._providers:
+            try:
+                provider.close()
+            except Exception:
+                log.exception("Provider %s failed to close", provider.name)
 
     def poll_once(self) -> Snapshot:
         snapshot = Snapshot(time=time.time())

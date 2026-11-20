@@ -19,3 +19,6 @@ class SensorProvider(ABC):
     @abstractmethod
     def read(self) -> list[Reading]:
         """Return the current readings. Called from the poller thread."""
+
+    def close(self) -> None:
+        """Free resources (e.g. shut down a driver library). Called once at exit."""

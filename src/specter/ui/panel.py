@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import tkinter as tk
 from typing import Callable, Tuple
@@ -9,12 +10,13 @@ from typing import Callable, Tuple
 from specter.core.models import Snapshot
 from specter.ui.layout import GAP_X, GAP_Y, choose_layout, grid_size
 from specter.ui.popup import PopupMenu
-from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, MetricTile
+from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, make_tile
 
 OPACITY_STEPS = [1.0, 0.85, 0.7, 0.55, 0.4]
 DEFAULT_COLUMNS = 2  # layout used until the user resizes the panel
 PAD_X, PAD_Y = 14, 12  # frame padding
 CHROME_W, CHROME_H = 2 * (PAD_X + 1), 2 * (PAD_Y + 1)  # padding + 1 px border
+TILE_ORDER = ("cpu", "gpu", "ram", "disk", "net", "fan")  # unknown devices go last
 EDGE = 6  # px along the window edge that start a resize instead of a move
 ARROW_GAP = 8
 
@@ -31,6 +33,13 @@ _RESIZE_CURSORS = {
 }
 
 Size = Tuple[int, int]
+
+
+def tile_sort_key(group: str) -> tuple[int, str]:
+    """CPU, GPU (gpu0, gpu1 ...), RAM, DISK, NET, FAN, then anything else by name."""
+    base = re.sub(r"\d+$", "", group)
+    rank = TILE_ORDER.index(base) if base in TILE_ORDER else len(TILE_ORDER)
+    return rank, group
 
 
 class PanelWindow:
@@ -66,7 +75,7 @@ class PanelWindow:
         )
         self._frame.pack(fill="both", expand=True)
 
-        self._tiles: dict[str, MetricTile] = {}
+        self._tiles: dict[str, tk.Frame] = {}
         self._cell: Size = (1, 1)  # largest tile seen so far (only grows, so the layout doesn't flicker)
         self._size: Size | None = size  # None = fit the content (user never resized)
         self._applied: Size | None = None  # size last given to the window
@@ -109,7 +118,7 @@ class PanelWindow:
         for group, readings in groups.items():
             tile = self._tiles.get(group)
             if tile is None:
-                tile = MetricTile(self._frame, readings[0].label)
+                tile = make_tile(self._frame, readings)
                 self._tiles[group] = tile
                 added = True
             tile.update_readings(readings)
@@ -179,7 +188,7 @@ class PanelWindow:
             self._place_tiles()
 
     def _place_tiles(self) -> None:
-        tiles = list(self._tiles.values())
+        tiles = [self._tiles[group] for group in sorted(self._tiles, key=tile_sort_key)]
         frame = self._frame
         for widget in tiles + list(self._arrows):
             widget.grid_forget()
