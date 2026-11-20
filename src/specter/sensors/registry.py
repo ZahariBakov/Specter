@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from specter.sensors.base import SensorProvider
+from specter.sensors.linux_hwmon import LinuxHwmonProvider
 from specter.sensors.system import SystemProvider
 
 log = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ def create_providers() -> list[SensorProvider]:
 
     New providers (hwmon temps, NVIDIA, Windows/LHM) get added to this list.
     """
-    candidates: list[type[SensorProvider]] = [SystemProvider]
+    candidates: list[type[SensorProvider]] = [SystemProvider, LinuxHwmonProvider]
 
     providers: list[SensorProvider] = []
     for cls in candidates:

@@ -33,6 +33,8 @@ def format_value(reading: Reading) -> str:
         return f"{reading.value:.0f}%"
     if reading.unit == "°C":
         return f"{reading.value:.0f}°C"
+    if reading.unit == "RPM":
+        return f"{reading.value:.0f} rpm"
     return f"{reading.value:.1f}{reading.unit}"
 
 
