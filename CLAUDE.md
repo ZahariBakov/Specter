@@ -65,8 +65,8 @@ sensors/ (providers) ──► core/poller.py (thread) ──► queue ──►
 | `src/specter/ui/widgets.py` | `MetricTile` (big number + bar, optional `Sparkline`), `RateTile` (rows, no bar), `make_tile()` picks one; `SlimTile` (one line, for the slim strip); `SegmentBar`, colours (green <60 %, yellow ≥60, red ≥85) |
 | `src/specter/ui/popup.py` | Custom right-click menu: OPACITY / TILES / UPDATE pills, Lock position, Always on top, Reset size, Quit. `MenuHooks` holds its callbacks. Global grab, closes on outside click, Esc or after 20 s idle |
 | `src/specter/ui/screen.py` | `screen_bounds()` = all monitors together; `clamp()` keeps the panel (and menu) on the desktop |
-| `src/specter/autostart.py` | "Start at login": XDG autostart entry on Linux (`supported()` is False elsewhere) |
-| `src/specter/ui/clickthrough.py` | X11 click-through: empty input shape except a corner grip, via ctypes + libXfixes |
+| `src/specter/autostart.py` | "Start at login": XDG autostart entry on Linux, `HKCU\...\Run` value "Specter" on Windows (`pythonw.exe -m specter` or the built exe) |
+| `src/specter/ui/clickthrough.py` | Click-through. X11: empty input shape except a corner grip (ctypes + libXfixes). Windows: `WS_EX_TRANSPARENT` on the outer window (`wm_frame()`) plus a separate grip toplevel |
 | `tools/build.py`, `tools/make_icon.py` | PyInstaller one-file build; draws `assets/icon.png`/`.ico` (no dependencies) |
 | `src/specter/config.py` | JSON config (opacity, position, size, interval, `hidden_tiles` (default disk, fan), `locked`, `topmost`) in the platformdirs config dir. Saved on every menu change and on Quit |
 | `src/specter/app.py` | Wires everything together. Shows the panel top-right on first start |
@@ -114,15 +114,19 @@ Windows counters/DXGI GPU + ACPI temp, GPU hub, LibreHardwareMonitor client, til
 with fake `/sys` trees: re-test on the Ubuntu box.
 Windows dev setup: `py -m venv .venv`, `.venv\Scripts\pip install -e ".[dev,nvidia]"`, `.venv\Scripts\pytest`,
 `.venv\Scripts\python -m specter [--sensors]`. Run from the repo folder, not an admin shell.
+2026-11-24: **Windows Steps 8, 11, 12 done**: click-through (grip window), `dist\specter.exe` build (12.4 MB,
+runs), Start at login (HKCU Run key), DPI awareness (`_set_dpi_aware()`, system-aware). 231 tests.
+This test PC: HP EliteBook 850 G8, 1920x1080 at 125 %. Windows exposes no fan here (no `Win32_Fan`, no
+ACPI fan device); HP's BIOS WMI (`root\HP\InstrumentedBIOS`) needs admin: waiting for the user's output.
 
 # Plan
 
 The step-by-step plan is in **`PLAN.md`** (read it at the start of a session). Do the next
 unfinished step, then mark it done in `PLAN.md` and update "Current state" above.
 
-**Next:** Phase 5 code is done. Left: re-test Linux on the Ubuntu box after the sensor rewrite, finish the
-Step 9 Windows checklist, Windows build/autostart/click-through (Steps 11, 12, 8), the user tags `v0.2.0`,
-and the "Later" list (alerts, themes, specs view).
+**Next:** re-test Linux on the Ubuntu box after the sensor rewrite (and its build), tick the Step 9
+Windows checklist by hand, decide the HP fan source, the user tags `v0.2.0`, then the "Later" list
+(alerts, themes, specs view).
 
 Machine facts for the plan: NVIDIA T600 4 GB, driver 495 (NVML works). Network interfaces
 `enp2s0`, `enp3s0`, `lo`. Disks `nvme0n1`, `sdh`, plus ~26 snap `loop*` devices that disk rates

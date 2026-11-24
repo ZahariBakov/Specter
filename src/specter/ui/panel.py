@@ -18,7 +18,7 @@ from specter.ui.layout import (
     grid_size,
     height_step,
 )
-from specter.ui.clickthrough import ClickThrough
+from specter.ui.clickthrough import ClickThrough, WindowsClickThrough
 from specter.ui.popup import ACCENT, MenuHooks, PopupMenu
 from specter.ui.screen import clamp, clamp_point, screen_bounds
 from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile, tile_heights
@@ -124,8 +124,13 @@ class PanelWindow:
         self._interval = interval_ms
         self._pos: Size | None = None  # where we last put the window
         self._click_through = False  # session only: not saved, so a restart is always clickable
-        self._clicker = ClickThrough() if ClickThrough.supported() else None
-        self._grip: tk.Frame | None = None
+        self._clicker: ClickThrough | WindowsClickThrough | None = None
+        if ClickThrough.supported():
+            self._clicker = ClickThrough()
+        elif WindowsClickThrough.supported():
+            self._clicker = WindowsClickThrough()
+        self._grip: tk.Frame | None = None  # X11: the dot inside the panel
+        self._grip_win: tk.Toplevel | None = None  # Windows: a tiny window over the corner
 
         root.title("Specter")
         root.configure(bg=BG)
@@ -202,6 +207,7 @@ class PanelWindow:
         root.bind("<Button-4>", self._wheel)  # X11 wheel
         root.bind("<Button-5>", self._wheel)
         root.bind("<MouseWheel>", self._wheel)  # Windows wheel
+        root.bind("<Configure>", self._root_configured, add="+")  # keeps the Windows grip in place
 
         self.set_opacity(opacity)
 
@@ -551,6 +557,9 @@ class PanelWindow:
         if self._clicker is None or on == self._click_through:
             return
         self.root.update_idletasks()
+        if isinstance(self._clicker, WindowsClickThrough):
+            self._set_click_through_windows(self._clicker, on)
+            return
         windows = self._input_windows()
         if on:
             ok = self._clicker.set_input_rects(windows, [(0, 0, GRIP, GRIP)])
@@ -573,8 +582,48 @@ class PanelWindow:
 
     def _input_windows(self) -> list[int]:
         """X ids of the window and the wrapper window Tk puts around it: both need the shape."""
-        assert self._clicker is not None
+        assert isinstance(self._clicker, ClickThrough)
         return self._clicker.window_chain(self.root.winfo_id())
+
+    def _set_click_through_windows(self, clicker: WindowsClickThrough, on: bool) -> None:
+        """Windows: a WS_EX_TRANSPARENT window ignores every click, so the grip is a separate
+        tiny top-most window kept over the panel's top-left corner."""
+        hwnd = clicker.top_level(self.root.winfo_id())  # the outer window that has WS_EX_LAYERED
+        if not clicker.set_transparent(hwnd, on):
+            return  # the menu shows the old state again
+        self._click_through = on
+        self._drag_start = self._resize_start = None
+        if on:
+            if self._grip_win is None:
+                grip = tk.Toplevel(self.root, bg=ACCENT, width=GRIP, height=GRIP, cursor="hand2")
+                grip.overrideredirect(True)
+                grip.attributes("-topmost", True)
+                try:
+                    grip.attributes("-toolwindow", True)  # no taskbar button
+                except tk.TclError:
+                    pass
+                grip.bind("<ButtonPress>", self._grip_pressed)
+                self._grip_win = grip
+            self._place_grip()
+            self._grip_win.deiconify()
+            self._grip_win.lift()
+        elif self._grip_win is not None:
+            self._grip_win.destroy()
+            self._grip_win = None
+
+    def _place_grip(self) -> None:
+        if self._grip_win is not None:
+            x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
+            self._grip_win.geometry(f"{GRIP}x{GRIP}+{x}+{y}")
+
+    def _root_configured(self, event: tk.Event) -> None:
+        if event.widget is self.root and self._grip_win is not None:
+            self._place_grip()
+
+    def _grip_pressed(self, event: tk.Event) -> str:
+        """Windows grip: any button opens the menu (to switch click-through off)."""
+        self._menu.open(event.x_root, event.y_root)
+        return "break"
 
     def _choose_interval(self, interval_ms: int) -> None:
         self._interval = interval_ms
@@ -594,6 +643,9 @@ class PanelWindow:
         x, y = clamp(x, y, width, height, screen_bounds(self.root))
         self._pos = (x, y)
         self.root.geometry(f"+{x}+{y}")
+        if self._grip_win is not None:
+            self.root.update_idletasks()
+            self._place_grip()
 
     def _keep_on_screen(self) -> None:
         """After a size change, pull the window back in if it now sticks out."""

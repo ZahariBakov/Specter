@@ -20,6 +20,25 @@ ICON = Path(__file__).parent / "assets" / "icon.png"
 UI_CHECK_MS = 100  # how often the UI picks up new snapshots
 
 
+def _set_dpi_aware() -> None:
+    """Windows: draw at the real screen resolution instead of a blurry bitmap stretched by the OS.
+
+    Must run before the first Tk window. "System aware" (1), not per-monitor: Tk does not rescale a
+    window that moves to a monitor with another scale, so per-monitor would look wrong there.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)  # type: ignore[attr-defined]
+        except (AttributeError, OSError):
+            ctypes.windll.user32.SetProcessDPIAware()  # type: ignore[attr-defined]  # Windows 7/8
+    except Exception:  # never stop the app over this
+        logging.getLogger(__name__).info("Could not set DPI awareness", exc_info=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -39,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     config = Config.load()
+    _set_dpi_aware()
     root = tk.Tk()
     try:  # the icon task switchers and window lists show (the panel has no title bar)
         icon = tk.PhotoImage(master=root, file=str(ICON))

@@ -101,7 +101,9 @@ Defaults used below for the open decisions (change them before the step that nee
 - Each tile keeps the last 60 primary values (`collections.deque(maxlen=60)`) and draws a thin
   line on a small Canvas under the bar. Off by default, toggle in the popup.
 
-### Step 8. Click-through mode (optional) ✅ X11 done 2026-11-24, Windows later
+### Step 8. Click-through mode (optional) ✅ X11 done 2026-11-24, Windows done 2026-11-24
+Windows: `WindowsClickThrough` sets `WS_EX_TRANSPARENT` on the outer window (`wm_frame()`), and a
+separate 14 px topmost grip window over the corner opens the menu. Grip click still to try by hand.
 Done: `ui/clickthrough.py` (X Fixes input shape through ctypes). Only a 14 px grip in the top-left
 corner takes clicks (a blue dot marks it); a click on it opens the menu to switch off. Session only,
 not saved. Windows: `WS_EX_TRANSPARENT` still to do (same grip idea needs `SetWindowRgn` or a
@@ -115,7 +117,9 @@ second small window). Original notes:
 
 ## Phase 3 — Windows
 
-### Step 9. Panel on Windows (code done 2026-11-24, **not yet run on Windows**)
+### Step 9. Panel on Windows (code done 2026-11-24; runs on Windows 11 since 2026-11-24, checklist below still to tick)
+Seen working: panel, tiles, sparklines, menu opens. Added: DPI awareness ("system aware", `_set_dpi_aware()`
+in `app.py`), so text is sharp at 125 % scaling. Items 2-5 below still need a hand check.
 Done in code: `-toolwindow` on Windows, Windows resize/move cursors (`resize_cursor()`,
 `move_cursor()` in `panel.py`), popup closes on focus loss (no global grab on Windows),
 virtual-screen bounds via `GetSystemMetrics` (`ui/screen.py`).
@@ -145,7 +149,9 @@ virtual-screen bounds via `GetSystemMetrics` (`ui/screen.py`).
 
 ## Phase 4 — release
 
-### Step 11. Builds (Linux done 2026-11-24, Windows later)
+### Step 11. Builds (Linux done 2026-11-24, Windows done 2026-11-24)
+Windows: `python tools\build.py` -> `dist\specter.exe` (12.4 MB, PyInstaller 6.22, Python 3.14), starts and
+shows the panel. Still to do: test the Linux build again after Phase 5, optional GitHub Actions.
 Done: `tools/build.py` (PyInstaller one-file, `pip install -e ".[build]"`), icon `src/specter/assets/icon.png`
 + `icon.ico` from `tools/make_icon.py`, the app sets it as window icon. Linux build ran fine here
 (10 MB). Still to do: test it on a newer distro, Windows build, optional GitHub Actions.
@@ -156,7 +162,9 @@ Original notes:
 - Windows: build on Windows. Optional: a GitHub Actions workflow for both.
 - An app icon (`.png` for Linux, `.ico` for Windows).
 
-### Step 12. Start with the system (Linux + README done 2026-11-24, Windows later)
+### Step 12. Start with the system (Linux + README done 2026-11-24, Windows done 2026-11-24)
+Windows: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value "Specter" (`pythonw.exe -m specter`,
+or the `.exe` itself in a build). Still to do: the `v0.2.0` tag (user).
 Done: `autostart.py` (XDG `~/.config/autostart/specter.desktop`), menu toggle **Start at login**, README
 with screenshots (`docs/images/`). Still to do: Windows autostart; the `v0.2.0` tag (user).
 Original notes:

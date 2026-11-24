@@ -1,10 +1,13 @@
-"""Click-through for the panel on X11: mouse clicks go to the window underneath.
+"""Click-through for the panel: mouse clicks go to the window underneath.
 
-Done with the X Fixes extension: the window gets an *input shape*. Only the small grip rectangle
-keeps taking clicks (so the menu can still be opened to switch this off); everywhere else the
-mouse goes to whatever is below. Called through ctypes, so there is nothing to install.
+X11 (`ClickThrough`): done with the X Fixes extension: the window gets an *input shape*. Only the
+small grip rectangle keeps taking clicks (so the menu can still be opened to switch this off);
+everywhere else the mouse goes to whatever is below.
 
-Windows would use WS_EX_TRANSPARENT instead (not done yet), so `supported()` is False there.
+Windows (`WindowsClickThrough`): a window with WS_EX_LAYERED | WS_EX_TRANSPARENT ignores *all*
+mouse input, so the grip has to be a separate small window (the panel makes it).
+
+Both are called through ctypes, so there is nothing to install.
 """
 
 from __future__ import annotations
@@ -150,3 +153,118 @@ class ClickThrough:
         if self._display and self._x11:
             self._x11.XCloseDisplay(self._display)
         self._display = None
+
+
+GWL_EXSTYLE = -20
+WS_EX_TRANSPARENT = 0x00000020
+WS_EX_LAYERED = 0x00080000
+SWP_NOSIZE = 0x0001
+SWP_NOMOVE = 0x0002
+SWP_NOZORDER = 0x0004
+SWP_NOACTIVATE = 0x0010
+SWP_FRAMECHANGED = 0x0020
+LWA_ALPHA = 0x00000002
+
+
+class WindowsClickThrough:
+    """Toggles WS_EX_TRANSPARENT on a top-level window. Use it from the Tk thread.
+
+    Which window: `root.winfo_id()` is Tk's inner child window; the real top-level is its parent
+    (`GetParent`, the same as `wm frame`). That outer window is the one Tk gives WS_EX_LAYERED for
+    `-alpha` (checked on Windows 11), so `top_level()` returns it and the style goes there.
+    """
+
+    def __init__(self) -> None:
+        self._user32: Optional[object] = None
+        self._get_long: Optional[object] = None  # GetWindowLongPtrW (or GetWindowLongW)
+        self._set_long: Optional[object] = None
+
+    @staticmethod
+    def supported() -> bool:
+        return sys.platform == "win32"
+
+    def _api(self) -> Optional[object]:
+        if self._user32 is not None:
+            return self._user32
+        try:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)  # type: ignore
+            hwnd, long_ptr = ctypes.c_void_p, ctypes.c_ssize_t
+            if hasattr(user32, "GetWindowLongPtrW"):  # 64-bit
+                get_long, set_long = user32.GetWindowLongPtrW, user32.SetWindowLongPtrW
+            else:  # 32-bit Windows only has the plain versions
+                get_long, set_long = user32.GetWindowLongW, user32.SetWindowLongW
+                long_ptr = ctypes.c_long
+            get_long.argtypes = [hwnd, ctypes.c_int]
+            get_long.restype = long_ptr
+            set_long.argtypes = [hwnd, ctypes.c_int, long_ptr]
+            set_long.restype = long_ptr
+            user32.GetParent.argtypes = [hwnd]
+            user32.GetParent.restype = hwnd
+            user32.SetWindowPos.argtypes = [
+                hwnd, hwnd, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint
+            ]
+            user32.SetWindowPos.restype = ctypes.c_int
+            user32.SetLayeredWindowAttributes.argtypes = [
+                hwnd, ctypes.c_uint32, ctypes.c_ubyte, ctypes.c_uint32
+            ]
+            user32.SetLayeredWindowAttributes.restype = ctypes.c_int
+        except (OSError, AttributeError):
+            log.exception("Could not load user32 for click-through")
+            return None
+        self._get_long, self._set_long = get_long, set_long
+        self._user32 = user32
+        return user32
+
+    def top_level(self, window: int) -> int:
+        """The real top-level window for Tk's `winfo_id()` (its parent), or `window` itself."""
+        user32 = self._api()
+        if user32 is None:
+            return window
+        try:
+            parent = user32.GetParent(window)  # type: ignore
+        except Exception:  # noqa: BLE001 - never crash over click-through
+            return window
+        return parent or window
+
+    def ex_style(self, hwnd: int) -> int:
+        """The window's extended style bits (0 if it can't be read)."""
+        user32 = self._api()
+        if user32 is None:
+            return 0
+        try:
+            return int(self._get_long(hwnd, GWL_EXSTYLE)) & 0xFFFFFFFF  # type: ignore
+        except Exception:  # noqa: BLE001
+            return 0
+
+    def set_transparent(self, hwnd: int, on: bool) -> bool:
+        """Mouse input passes through `hwnd` (on) or not (off). Keeps WS_EX_LAYERED (Tk needs it
+        for the opacity), adding it if missing. Returns False if it could not be done."""
+        user32 = self._api()
+        if user32 is None or not hwnd:
+            return False
+        try:
+            ctypes.set_last_error(0)
+            style = self._get_long(hwnd, GWL_EXSTYLE)  # type: ignore
+            if style == 0 and ctypes.get_last_error():
+                return False
+            if on:
+                new = style | WS_EX_LAYERED | WS_EX_TRANSPARENT
+            else:
+                new = style & ~WS_EX_TRANSPARENT
+            if new != style:
+                ctypes.set_last_error(0)
+                old = self._set_long(hwnd, GWL_EXSTYLE, new)  # type: ignore
+                if old == 0 and ctypes.get_last_error():
+                    return False
+                if on and not style & WS_EX_LAYERED:
+                    # A layered window stays invisible until it gets its attributes: full opacity.
+                    user32.SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA)  # type: ignore
+            flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE
+            user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, flags)  # type: ignore
+            return bool(self.ex_style(hwnd) & WS_EX_TRANSPARENT) == on
+        except Exception:  # noqa: BLE001 - never crash over click-through
+            log.exception("Could not change click-through")
+            return False
+
+    def close(self) -> None:
+        """Nothing to release; here so both classes look the same to the panel."""

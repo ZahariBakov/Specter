@@ -39,9 +39,9 @@ A tile with a bar can also draw a short history graph (sparkline).
   ![The menu](docs/images/menu.png)
 
   Opacity, which tiles to show, how often to read the sensors, sparklines, lock the position,
-  click-through (X11), always on top, start at login (Linux), reset the size, quit.
+  click-through, always on top, start at login, reset the size, quit.
   Settings are saved when you change them, in `config.json` in your user config folder
-  (`~/.config/specter/` on Linux).
+  (`~/.config/specter/` on Linux, `%LOCALAPPDATA%\specter\` on Windows).
 
 **Click-through** lets mouse clicks go to the window under the panel (handy over a video or a
 game). A small blue dot appears in the panel's top-left corner: click it to get the menu back and
@@ -79,11 +79,11 @@ fans.
 
 ```bash
 pip install -e ".[nvidia,build]"
-python tools/build.py           # -> dist/specter
+python tools/build.py           # -> dist/specter (dist\specter.exe on Windows)
 ```
 
 The result runs without Python. Build it on the oldest Linux you want it to run on: it needs at
-least the glibc of the machine that built it.
+least the glibc of the machine that built it. Windows builds must be made on Windows.
 
 ## Known limits
 
@@ -95,7 +95,8 @@ least the glibc of the machine that built it.
   real load counter needs root.
 - **Windows support is still young.** It has been tried on one Intel laptop so far; see the
   [tested hardware](docs/sensors.md#tested-hardware) list.
-- "Start at login" and click-through only work on Linux (X11) so far.
+- Click-through works on X11 and Windows, not on Wayland.
+- Many laptops (e.g. HP EliteBook) don't report fan speed to Windows at all, so there is no FAN tile.
 
 ## Diagnostics
 
