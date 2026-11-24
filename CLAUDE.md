@@ -56,7 +56,7 @@ sensors/ (providers) ──► core/poller.py (thread) ──► queue ──►
 | `src/specter/sensors/io_rates.py` | `disk.read/write`, `net.down/up` in MB/s from counter deltas. Skips loop/dm/partitions and lo/docker/veth/tun |
 | `src/specter/ui/panel.py` | Frameless, top-most window. Drag to move, drag edges/corners (6 px) to resize, right-click popup. Mouse bindings live on the root window, so they cover every tile |
 | `src/specter/ui/layout.py` | Pure layout maths: `choose_columns()` picks row / column / grid by window shape; `choose_layout()` shows fewer tiles (3 → 2 → 1) with ‹ › arrows when not all fit |
-| `src/specter/ui/widgets.py` | `MetricTile` (big number + bar), `RateTile` (rows, no bar), `make_tile()` picks one; `SlimTile` (one line, for the slim strip); `SegmentBar`, colours (green <60 %, yellow ≥60, red ≥85) |
+| `src/specter/ui/widgets.py` | `MetricTile` (big number + bar, optional `Sparkline`), `RateTile` (rows, no bar), `make_tile()` picks one; `SlimTile` (one line, for the slim strip); `SegmentBar`, colours (green <60 %, yellow ≥60, red ≥85) |
 | `src/specter/ui/popup.py` | Custom right-click menu: OPACITY / TILES / UPDATE pills, Lock position, Always on top, Reset size, Quit. `MenuHooks` holds its callbacks. Global grab, closes on outside click, Esc or after 20 s idle |
 | `src/specter/ui/screen.py` | `screen_bounds()` = all monitors together; `clamp()` keeps the panel (and menu) on the desktop |
 | `src/specter/config.py` | JSON config (opacity, position, size, interval, `hidden_tiles` (default disk, fan), `locked`, `topmost`) in the platformdirs config dir. Saved on every menu change and on Quit |
@@ -86,14 +86,17 @@ them). `Poller.set_interval()`. 51 tests. Not checked visually (screen was locke
 2026-11-24: **Step 6 done**: mouse wheel cycles tiles (when arrows show), `°C` values turn yellow at
 70 / red at 85 (`TEMP_WARN`/`TEMP_HOT` in `widgets.py`; the MetricTile sub line is now one label per
 value), `Config.first_tile` remembers where cycling stopped. 54 tests.
+2026-11-24: **Step 7 done**: optional sparklines (`Sparkline` in `widgets.py`, 60 samples, only `MetricTile`,
+toggle in the menu, `Config.sparklines`, off by default). **Step 9 code written but never run on Windows**
+(cursor names, `-toolwindow`, popup closes on focus loss, `screen_bounds()` via `GetSystemMetrics`). 58 tests.
 
 # Plan
 
 The step-by-step plan is in **`PLAN.md`** (read it at the start of a session). Do the next
 unfinished step, then mark it done in `PLAN.md` and update "Current state" above.
 
-**Next:** Phase 2, Step 7 (sparkline, optional), Step 8 (click-through, optional), or Phase 3 (Windows,
-Step 9). Ask the user which.
+**Next:** the user tests Step 9 on Windows (checklist in `PLAN.md`) and reports; then fix. After that
+Step 10 (Windows CPU temperature) or Step 8 (click-through, optional).
 
 Machine facts for the plan: NVIDIA T600 4 GB, driver 495 (NVML works). Network interfaces
 `enp2s0`, `enp3s0`, `lo`. Disks `nvme0n1`, `sdh`, plus ~26 snap `loop*` devices that disk rates

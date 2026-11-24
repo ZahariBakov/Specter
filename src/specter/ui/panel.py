@@ -37,7 +37,30 @@ _RESIZE_CURSORS = {
     (0, 1): "bottom_side",
 }
 
+# Windows has its own cursor names (its resize arrows are the "size_*" ones).
+_WINDOWS_RESIZE_CURSORS = {
+    (-1, -1): "size_nw_se",
+    (1, 1): "size_nw_se",
+    (1, -1): "size_ne_sw",
+    (-1, 1): "size_ne_sw",
+    (-1, 0): "size_we",
+    (1, 0): "size_we",
+    (0, -1): "size_ns",
+    (0, 1): "size_ns",
+}
+
 Size = Tuple[int, int]
+
+
+def resize_cursor(edges: Tuple[int, int], platform: str = sys.platform) -> str:
+    """Cursor for the window edge the pointer is on ("" = normal arrow)."""
+    table = _WINDOWS_RESIZE_CURSORS if platform == "win32" else _RESIZE_CURSORS
+    return table.get(edges, "")
+
+
+def move_cursor(platform: str = sys.platform) -> str:
+    """Cursor shown while dragging the panel."""
+    return "size" if platform == "win32" else "fleur"
 
 
 def tile_sort_key(group: str) -> tuple[int, str]:
@@ -66,6 +89,7 @@ class PanelWindow:
         size: Size | None = None,
         hidden_tiles: Iterable[str] = (),
         first_tile: str | None = None,
+        sparklines: bool = False,
         locked: bool = False,
         topmost: bool = True,
         interval_ms: int = 1000,
@@ -80,6 +104,7 @@ class PanelWindow:
         self._on_change = on_change
         self._on_quit = on_quit
         self._hidden: set[str] = set(hidden_tiles)
+        self._sparklines = sparklines
         self._locked = locked
         self._topmost = topmost
         self._interval = interval_ms
@@ -91,6 +116,11 @@ class PanelWindow:
         root.attributes("-topmost", topmost)
         if sys.platform.startswith("linux"):
             root.attributes("-type", "utility")  # hint: no taskbar entry
+        elif sys.platform == "win32":
+            try:
+                root.attributes("-toolwindow", True)  # no taskbar button
+            except tk.TclError:
+                pass
 
         self._frame = tk.Frame(
             root, bg=BG, padx=PAD_X, pady=PAD_Y, highlightthickness=1, highlightbackground=BORDER
@@ -127,6 +157,8 @@ class PanelWindow:
                 on_interval=self._choose_interval,
                 get_tiles=self.tile_choices,
                 on_tile=self.set_tile_shown,
+                get_sparklines=lambda: self._sparklines,
+                on_sparklines=self.set_sparklines,
                 get_locked=lambda: self._locked,
                 on_locked=self.set_locked,
                 get_topmost=lambda: self._topmost,
@@ -162,6 +194,8 @@ class PanelWindow:
             tile = self._tiles.get(group)
             if tile is None:
                 tile = make_tile(self._frame, readings)
+                if hasattr(tile, "set_sparkline"):
+                    tile.set_sparkline(self._sparklines)
                 self._tiles[group] = tile
                 self._slim_tiles[group] = SlimTile(self._frame, readings[0].label)
                 added = True
@@ -414,6 +448,19 @@ class PanelWindow:
     # --- other settings -------------------------------------------------------
 
     @property
+    def sparklines(self) -> bool:
+        return self._sparklines
+
+    def set_sparklines(self, on: bool) -> None:
+        """A small history graph under each bar. Tiles get taller, so measure again."""
+        self._sparklines = on
+        for tile in self._tiles.values():
+            if hasattr(tile, "set_sparkline"):
+                tile.set_sparkline(on)
+        self._measure(force=True, reset=True)
+        self._changed()
+
+    @property
     def locked(self) -> bool:
         return self._locked
 
@@ -478,7 +525,7 @@ class PanelWindow:
             self.root.configure(cursor=cursor)
 
     def _hover(self, event: tk.Event) -> None:
-        self._set_cursor("" if self._locked else _RESIZE_CURSORS.get(self._edges(event), ""))
+        self._set_cursor("" if self._locked else resize_cursor(self._edges(event)))
 
     def _press(self, event: tk.Event) -> None:
         self._hide_menu()
@@ -500,7 +547,7 @@ class PanelWindow:
                 event.x_root - self.root.winfo_x(),
                 event.y_root - self.root.winfo_y(),
             )
-            self._set_cursor("fleur")  # 4-way "move" cursor while dragging
+            self._set_cursor(move_cursor())  # 4-way "move" cursor while dragging
 
     def _motion(self, event: tk.Event) -> None:
         if self._drag_start is not None:

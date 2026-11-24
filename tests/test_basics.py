@@ -57,9 +57,10 @@ def test_config_size_needs_both_values(tmp_path):
 
 def test_config_new_settings_roundtrip(tmp_path):
     path = tmp_path / "config.json"
-    Config(hidden_tiles=["net"], locked=True, topmost=False).save(path)
+    Config(hidden_tiles=["net"], locked=True, topmost=False, sparklines=True).save(path)
     loaded = Config.load(path)
     assert (loaded.hidden_tiles, loaded.locked, loaded.topmost) == (["net"], True, False)
+    assert loaded.sparklines is True
 
 
 def test_old_config_without_new_settings_uses_defaults(tmp_path):
@@ -68,7 +69,7 @@ def test_old_config_without_new_settings_uses_defaults(tmp_path):
     loaded = Config.load(path)
     assert loaded.opacity == 0.7
     assert loaded.hidden_tiles == ["disk", "fan"]
-    assert (loaded.locked, loaded.topmost) == (False, True)
+    assert (loaded.locked, loaded.topmost, loaded.sparklines) == (False, True, False)
 
 
 def test_config_ignores_bad_new_values(tmp_path):

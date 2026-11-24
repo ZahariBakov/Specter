@@ -27,6 +27,7 @@ class Config:
     height: int | None = None
     hidden_tiles: List[str] = field(default_factory=lambda: list(DEFAULT_HIDDEN_TILES))
     first_tile: str | None = None  # tile the panel starts cycling from (when not all fit)
+    sparklines: bool = False  # small history graph in each tile
     locked: bool = False  # no moving or resizing
     topmost: bool = True  # always on top
 
@@ -56,6 +57,7 @@ class Config:
             cfg.hidden_tiles = list(DEFAULT_HIDDEN_TILES)
         if not isinstance(cfg.first_tile, str):
             cfg.first_tile = None
+        cfg.sparklines = bool(cfg.sparklines)
         cfg.locked = bool(cfg.locked)
         cfg.topmost = bool(cfg.topmost)
         return cfg

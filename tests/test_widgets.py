@@ -74,3 +74,40 @@ def test_slim_items_keep_the_reading():
         ("8%", PRIMARY, load),
         ("35°C", SECONDARY, temp),
     ]
+
+
+def test_sparkline_points_grow_from_the_right():
+    from specter.ui.widgets import HISTORY, sparkline_points
+
+    assert sparkline_points([0.5], 100, 20) == []  # one value is no line
+    points = sparkline_points([0.0, 1.0], 100, 20)
+    assert points[2] == 99  # newest at the right edge
+    assert points[0] == 99 - 99 / (HISTORY - 1)  # one slot to the left, not stretched
+    assert points[3] < points[1]  # a higher value is higher up (smaller y)
+    assert all(0 <= y <= 20 for y in points[1::2])
+
+
+def test_sparkline_keeps_only_the_last_values_and_clamps():
+    from specter.ui.widgets import HISTORY, sparkline_points
+
+    points = sparkline_points([0.1] * 200 + [5.0], 120, 30)
+    assert len(points) == 2 * HISTORY
+    assert points[0] == 0.0 and points[-2] == 119
+    assert points[-1] == sparkline_points([0.0, 1.0], 120, 30)[3]  # 5.0 is clamped to 1.0
+
+
+def test_cursor_names_per_platform():
+    from specter.ui.panel import move_cursor, resize_cursor
+
+    assert resize_cursor((1, 1), "linux") == "bottom_right_corner"
+    assert resize_cursor((1, 1), "win32") == "size_nw_se"
+    assert resize_cursor((-1, 1), "win32") == "size_ne_sw"
+    assert resize_cursor((0, -1), "win32") == "size_ns"
+    assert resize_cursor((0, 0), "win32") == "" and resize_cursor((0, 0), "linux") == ""
+    assert (move_cursor("linux"), move_cursor("win32")) == ("fleur", "size")
+
+
+def test_every_edge_has_a_cursor_on_both_platforms():
+    from specter.ui.panel import _RESIZE_CURSORS, _WINDOWS_RESIZE_CURSORS
+
+    assert set(_RESIZE_CURSORS) == set(_WINDOWS_RESIZE_CURSORS)

@@ -37,6 +37,7 @@ def main() -> int:
         config.opacity = panel.opacity()
         config.hidden_tiles = panel.hidden_tiles()
         config.first_tile = panel.first_tile()
+        config.sparklines = panel.sparklines
         config.locked = panel.locked
         config.topmost = panel.topmost
         config.pos_x, config.pos_y = panel.position()
@@ -55,6 +56,7 @@ def main() -> int:
         size=size,
         hidden_tiles=config.hidden_tiles,
         first_tile=config.first_tile,
+        sparklines=config.sparklines,
         locked=config.locked,
         topmost=config.topmost,
         interval_ms=config.interval_ms,

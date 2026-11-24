@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import List, Optional, Tuple
+from collections import deque
+from typing import Deque, List, Optional, Tuple
 
 from specter.core.models import Reading
 
@@ -19,6 +20,8 @@ YELLOW = "#f5c542"
 RED = "#ff5b5b"
 
 SEGMENTS = 8
+HISTORY = 60  # values kept for the sparkline
+SPARK_HEIGHT = 22  # px
 TEMP_WARN = 70  # °C: yellow from here
 TEMP_HOT = 85  # °C: red from here
 
@@ -96,6 +99,25 @@ def reading_fraction(reading: Reading) -> float:
     return 0.0
 
 
+def sparkline_points(values: List[float], width: int, height: int) -> List[float]:
+    """Flat [x0, y0, x1, y1, ...] for a line through `values` (each 0..1, newest last).
+
+    The newest value sits at the right edge and the line grows from there, one slot per
+    sample out of HISTORY, so the graph doesn't stretch while it is filling up.
+    Fewer than two values: nothing to draw.
+    """
+    if len(values) < 2 or width <= 1 or height <= 1:
+        return []
+    step = (width - 1) / (HISTORY - 1)
+    top, bottom = 1, height - 2  # keep the 1 px line inside the canvas
+    points: List[float] = []
+    for i, value in enumerate(values[-HISTORY:]):
+        age = min(len(values), HISTORY) - 1 - i
+        value = min(1.0, max(0.0, value))
+        points += [(width - 1) - age * step, bottom - value * (bottom - top)]
+    return points
+
+
 # Kinds of text in a slim tile.
 PRIMARY, SECONDARY = "primary", "secondary"
 
@@ -148,6 +170,30 @@ class SegmentBar(tk.Canvas):
             )
 
 
+class Sparkline(tk.Canvas):
+    """A thin line of the recent values, coloured like the bar."""
+
+    def __init__(self, master: tk.Misc) -> None:
+        super().__init__(
+            master, width="22m", height=SPARK_HEIGHT, bg=BG, highlightthickness=0, bd=0
+        )
+        self._values: Deque[float] = deque(maxlen=HISTORY)
+        self.bind("<Configure>", lambda _e: self._draw())
+
+    def add(self, fraction: float) -> None:
+        self._values.append(fraction)
+        if self.winfo_ismapped():
+            self._draw()
+
+    def _draw(self) -> None:
+        self.delete("all")
+        width, height = self.winfo_width(), self.winfo_height()
+        self.create_line(0, height - 1, width, height - 1, fill=SEG_OFF)  # baseline
+        points = sparkline_points(list(self._values), width, height)
+        if points:
+            self.create_line(*points, fill=level_colour(self._values[-1]), width=1)
+
+
 class MetricTile(tk.Frame):
     """One device (CPU, RAM, GPU...): label, big value, segment bar, small sub line."""
 
@@ -158,6 +204,7 @@ class MetricTile(tk.Frame):
         )
         self._value = tk.Label(self, text="—", bg=BG, fg=VALUE_FG, font=("TkDefaultFont", 17, "bold"))
         self._bar = SegmentBar(self)
+        self._spark = Sparkline(self)  # only packed while sparklines are on; keeps its history
         self._sub = tk.Frame(self, bg=BG)  # one label per value, so a temperature can warn
         self._sub_labels: list[tk.Label] = []
 
@@ -165,6 +212,12 @@ class MetricTile(tk.Frame):
         self._value.pack(anchor="w", pady=(0, 3))
         self._bar.pack(anchor="w")
         self._sub.pack(anchor="w", pady=(3, 0))
+
+    def set_sparkline(self, on: bool) -> None:
+        if on:
+            self._spark.pack(anchor="w", pady=(4, 0), before=self._sub)
+        else:
+            self._spark.pack_forget()
 
     def update_readings(self, readings: list[Reading]) -> None:
         primary = pick_primary(readings) or readings[0]
@@ -174,6 +227,7 @@ class MetricTile(tk.Frame):
 
         fraction = reading_fraction(primary)
         self._bar.set_fraction(fraction)
+        self._spark.add(fraction)
         self._value.config(fg=level_colour(fraction) if fraction >= 0.6 else VALUE_FG)
 
         sub_parts = [(format_secondary(r), reading_colour(r, SUB_FG)) for r in others]

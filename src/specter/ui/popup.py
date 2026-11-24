@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import tkinter as tk
 from dataclasses import dataclass
 from typing import Any, Callable, List, Sequence, Tuple
@@ -35,6 +36,8 @@ class MenuHooks:
     on_interval: Callable[[int], None]
     get_tiles: Callable[[], List[TileChoice]]
     on_tile: Callable[[str, bool], None]
+    get_sparklines: Callable[[], bool]
+    on_sparklines: Callable[[bool], None]
     get_locked: Callable[[], bool]
     on_locked: Callable[[bool], None]
     get_topmost: Callable[[], bool]
@@ -103,6 +106,7 @@ class PopupMenu:
         )
 
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", padx=2, pady=(0, 4))
+        self._toggle(body, "Sparklines", hooks.get_sparklines, hooks.on_sparklines)
         self._toggle(body, "Lock position", hooks.get_locked, hooks.on_locked)
         self._toggle(body, "Always on top", hooks.get_topmost, hooks.on_topmost)
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", padx=2, pady=4)
@@ -111,6 +115,10 @@ class PopupMenu:
 
         win.bind("<ButtonPress>", self._on_press, add="+")
         win.bind("<Escape>", lambda _e: self.close())
+        if sys.platform == "win32":
+            # Windows has no global grab, so clicks in other apps never reach us: close
+            # when the menu loses focus instead.
+            win.bind("<FocusOut>", lambda e: self.close() if e.widget is win else None)
         win.bind("<Motion>", lambda _e: self._restart_timer(), add="+")
 
         # Keep it on screen (any monitor).

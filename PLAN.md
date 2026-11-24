@@ -6,7 +6,7 @@ screenshot check, and is committed by the user before the next one starts.
 **Done so far:** CPU load + RAM, CPU temperature + fan (`linux_hwmon.py`), drag, opacity, popup
 menu, config, resizable panel (row / column / grid, then 2 → 1 tiles with ‹ › arrows),
 Phase 1 (NVIDIA GPU, rate tiles, disk and network speed), slim strip at taskbar height,
-Step 5 (popup settings, screen-edge limit), Step 6 (wheel, temperature colours).
+Step 5 (popup settings, screen-edge limit), Step 6 (wheel, temperature colours), Step 7 (sparklines), Step 9 code (still to test on Windows).
 
 Defaults used below for the open decisions (change them before the step that needs them):
 
@@ -97,7 +97,7 @@ Defaults used below for the open decisions (change them before the step that nee
   sub line). Thresholds as constants in `widgets.py`.
 - Remember the first shown tile when cycling (`Config.first_tile`).
 
-### Step 7. Sparkline (optional)
+### Step 7. Sparkline (optional) ✅ (2026-11-24)
 - Each tile keeps the last 60 primary values (`collections.deque(maxlen=60)`) and draws a thin
   line on a small Canvas under the bar. Off by default, toggle in the popup.
 
@@ -111,7 +111,20 @@ Defaults used below for the open decisions (change them before the step that nee
 
 ## Phase 3 — Windows
 
-### Step 9. Panel on Windows
+### Step 9. Panel on Windows (code done 2026-11-24, **not yet run on Windows**)
+Done in code: `-toolwindow` on Windows, Windows resize/move cursors (`resize_cursor()`,
+`move_cursor()` in `panel.py`), popup closes on focus loss (no global grab on Windows),
+virtual-screen bounds via `GetSystemMetrics` (`ui/screen.py`).
+
+**Test checklist on a Windows PC** (then fix whatever fails):
+1. Set up: python.org Python 3.8+, `py -m venv .venv`, `.venv\Scripts\pip install -e ".[dev,nvidia]"`,
+   `.venv\Scripts\pytest`, `.venv\Scripts\specter`.
+2. No taskbar button; panel stays on top; opacity pills work (`-alpha`).
+3. Drag, resize (right cursors at edges and corners), slim strip, arrows and wheel.
+4. Right-click menu: opens, closes on outside click / Esc / switching to another app.
+5. Two monitors: drag across, stops at the outer edges (also with a monitor left of the primary).
+6. Tiles: CPU, RAM, DISK, NET work. GPU only with an NVIDIA card. No CPU temperature or fan yet (Step 10).
+7. Blurry text on a high-DPI screen? Then set DPI awareness (`SetProcessDpiAwareness`) and re-check 5.
 - Skip `-type utility`. Use `-toolwindow` to hide the panel from the taskbar.
 - Check `-alpha`, `-topmost`, the popup's global grab, and the resize cursors (Windows has
   `size_nw_se` etc. if the X names look wrong).
