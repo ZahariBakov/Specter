@@ -10,12 +10,16 @@ Inspired by Speccy and GPU Temp.
 
 | Tile | Values |
 |---|---|
-| CPU | load, temperature (Linux) |
-| GPU | load, memory, temperature (NVIDIA, through NVML) |
+| CPU | load, temperature |
+| GPU | load, memory, temperature, fan (NVIDIA, AMD, Intel; one tile per GPU) |
 | RAM | used / total |
 | DISK | read and write speed |
 | NET | download and upload speed |
-| FAN | fastest spinning fan (Linux) |
+| FAN | fastest spinning fan |
+
+Which of these you get depends on your hardware and OS. On Windows, temperatures and fans come
+from [LibreHardwareMonitor](docs/sensors.md#set-up-librehardwaremonitor) if it runs, with a rough
+CPU temperature fallback otherwise. Details per OS and GPU vendor: **[docs/sensors.md](docs/sensors.md)**.
 
 Values turn yellow and red when they get high (load from 60 %, temperatures from 70 °C).
 A tile with a bar can also draw a short history graph (sparkline).
@@ -48,15 +52,28 @@ switch click-through off. It is not saved, so a restart is always clickable.
 Requires Python 3.8+ with Tkinter. On Linux, prefer the system Python (`python3-tk`): its Tk draws
 smooth fonts and uses your cursor theme, while the Tk bundled with uv-managed Pythons does not.
 
+Linux:
+
 ```bash
-python -m venv .venv            # or: uv venv --python /usr/bin/python3
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -e ".[nvidia]"      # or: uv pip install -e ".[nvidia]"
-specter                         # or: python -m specter
+python3 -m venv .venv           # or: uv venv --python /usr/bin/python3
+.venv/bin/pip install -e ".[nvidia]"
+.venv/bin/specter               # or: .venv/bin/python -m specter
 ```
 
-The `nvidia` extra installs `nvidia-ml-py` for NVIDIA GPU sensors. Without it, or without an
-NVIDIA driver, the GPU tile is simply not shown (a line in the log says why).
+Windows:
+
+```bat
+py -m venv .venv
+.venv\Scripts\pip install -e ".[nvidia]"
+.venv\Scripts\specter
+```
+
+(or `.venv\Scripts\python -m specter`)
+
+The `nvidia` extra installs `nvidia-ml-py` for NVIDIA GPU sensors (leave it out if you have no
+NVIDIA card). AMD and Intel GPUs need nothing extra. On Windows, also see
+[Set up LibreHardwareMonitor](docs/sensors.md#set-up-librehardwaremonitor) for temperatures and
+fans.
 
 ### A single-file program
 
@@ -72,11 +89,23 @@ least the glibc of the machine that built it.
 
 - **Opacity needs a compositor.** On Linux/X11 that is KWin, Mutter, Picom and so on. Without one
   the panel stays fully opaque.
-- CPU temperature and fan speed are Linux only for now. On Windows they need a different source
-  (planned).
-- Only NVIDIA GPUs are read. AMD is planned.
-- Windows support is written but has not been tried yet. Expect rough edges.
+- **Windows temperatures and fans** work best with LibreHardwareMonitor running. Without it you
+  get at most an approximate CPU temperature (ACPI thermal zone, not on every PC) and no fans.
+- **Intel GPU load on Linux is approximate** (shown with "~"): it is the GPU clock, because the
+  real load counter needs root.
+- **Windows support is still young.** It has been tried on one Intel laptop so far; see the
+  [tested hardware](docs/sensors.md#tested-hardware) list.
 - "Start at login" and click-through only work on Linux (X11) so far.
+
+## Diagnostics
+
+```bash
+specter --sensors     # which sensor sources work here, and the values they give
+specter --dump        # raw sensor data for bug reports
+```
+
+A sensor is missing or wrong? Paste both outputs into a GitHub issue, see
+[Reporting a missing sensor](docs/sensors.md#reporting-a-missing-sensor).
 
 ## Development
 
@@ -90,5 +119,4 @@ The icon is drawn by `tools/make_icon.py`.
 
 ## Roadmap
 
-Windows testing, CPU temperature on Windows, alerts, AMD GPUs, themes, a detailed hardware specs
-view. See `PLAN.md`.
+More Windows testing (NVIDIA, AMD), alerts, themes, a detailed hardware specs view. See `PLAN.md`.

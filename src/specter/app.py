@@ -20,7 +20,22 @@ ICON = Path(__file__).parent / "assets" / "icon.png"
 UI_CHECK_MS = 100  # how often the UI picks up new snapshots
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="specter", description="Small hardware monitor panel.")
+    parser.add_argument("--sensors", action="store_true", help="print which sensors work and exit")
+    parser.add_argument("--dump", action="store_true", help="print raw platform sensor data and exit")
+    args = parser.parse_args(argv)
+    if args.sensors or args.dump:
+        from specter import diagnostics
+
+        if args.sensors:
+            print(diagnostics.sensors_report())
+        if args.dump:
+            print(diagnostics.dump_report())
+        return 0
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     config = Config.load()

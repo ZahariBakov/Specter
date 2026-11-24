@@ -1,0 +1,68 @@
+{
+  "id": 0, "Text": "Sensor", "Min": "Min", "Value": "Value", "Max": "Max", "ImageURL": "",
+  "Children": [
+    {
+      "id": 1, "Text": "RYZEN-BOX", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/computer.png",
+      "Children": [
+        {
+          "id": 2, "Text": "MSI MAG B550 TOMAHAWK (MS-7C91)", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/mainboard.png",
+          "Children": [
+            {
+              "id": 3, "Text": "Nuvoton NCT6795D", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/chip.png",
+              "Children": [
+                {
+                  "id": 4, "Text": "Fans", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/fan.png",
+                  "Children": [
+                    {"id": 5, "Text": "CPU Fan", "Min": "0 RPM", "Value": "1 034 RPM", "Max": "1 512 RPM", "SensorId": "/lpc/nct6795d/0/fan/1", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []}
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 6, "Text": "AMD Ryzen 7 5800X", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/cpu.png",
+          "Children": [
+            {
+              "id": 7, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+              "Children": [
+                {"id": 8, "Text": "Core (Tctl/Tdie)", "Min": "35,5 °C", "Value": "48,3 °C", "Max": "81,0 °C", "SensorId": "/amdcpu/0/temperature/2", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []},
+                {"id": 9, "Text": "CCD1 (Tdie)", "Min": "33,0 °C", "Value": "44,8 °C", "Max": "79,5 °C", "SensorId": "/amdcpu/0/temperature/3", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 10, "Text": "Load", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/load.png",
+              "Children": [
+                {"id": 11, "Text": "CPU Total", "Min": "0,8 %", "Value": "21,6 %", "Max": "100,0 %", "SensorId": "/amdcpu/0/load/0", "Type": "Load", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        },
+        {
+          "id": 12, "Text": "AMD Radeon RX 6700 XT", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/amd.png",
+          "Children": [
+            {
+              "id": 13, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+              "Children": [
+                {"id": 14, "Text": "GPU Core", "Min": "40,0 °C", "Value": "55,0 °C", "Max": "72,0 °C", "SensorId": "/gpu-amd/0/temperature/0", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []},
+                {"id": 15, "Text": "GPU Hot Spot", "Min": "42,0 °C", "Value": "61,0 °C", "Max": "88,0 °C", "SensorId": "/gpu-amd/0/temperature/2", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 16, "Text": "Load", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/load.png",
+              "Children": [
+                {"id": 17, "Text": "GPU Core", "Min": "0,0 %", "Value": "3,0 %", "Max": "100,0 %", "SensorId": "/gpu-amd/0/load/0", "Type": "Load", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 18, "Text": "Fans", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/fan.png",
+              "Children": [
+                {"id": 19, "Text": "GPU Fan", "Min": "0 RPM", "Value": "0 RPM", "Max": "1650 RPM", "SensorId": "/gpu-amd/0/fan/0", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

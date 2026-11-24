@@ -111,3 +111,47 @@ def test_every_edge_has_a_cursor_on_both_platforms():
     from specter.ui.panel import _RESIZE_CURSORS, _WINDOWS_RESIZE_CURSORS
 
     assert set(_RESIZE_CURSORS) == set(_WINDOWS_RESIZE_CURSORS)
+
+
+def test_primary_shows_its_mark_before_the_number():
+    from specter.ui.widgets import format_primary, slim_items
+
+    freq = Reading("gpu.freq", "GPU", 45, "%", 100.0, short="~")
+    temp = Reading("gpu.temp", "GPU", 50, "°C")
+    assert format_primary(freq) == "~45%"
+    assert format_primary(Reading("gpu.load", "GPU", 45, "%", 100.0)) == "45%"
+    assert slim_items([temp, freq])[0] == ("~45%", PRIMARY, freq)
+
+
+def test_secondary_order_is_stable():
+    import random
+
+    from specter.ui.widgets import secondary_sort_key, slim_parts
+
+    mem = Reading("gpu.mem", "GPU", 0.9, "GB", 3.8)
+    temp = Reading("gpu.temp", "GPU", 59, "°C")
+    fan = Reading("gpu.fan", "GPU", 1500, "RPM")
+    other = Reading("gpu.power", "GPU", 30, "W")
+    load = Reading("gpu.load", "GPU", 12, "%", 100.0)
+    expected = [mem, temp, fan, other]
+    shuffled = expected[:]
+    for seed in range(5):
+        random.Random(seed).shuffle(shuffled)
+        assert sorted(shuffled, key=secondary_sort_key) == expected
+        assert [t for t, _k in slim_parts(shuffled + [load])] == [
+            "12%", "0.9GB", "59°C", "1500 rpm", "30.0W"
+        ]
+
+
+def test_fan_percent_is_labelled():
+    from specter.ui.widgets import secondary_sort_key, slim_parts
+
+    fanpct = Reading("gpu.fanpct", "GPU", 42, "%", 100.0)
+    temp = Reading("gpu.temp", "GPU", 59, "°C")
+    load = Reading("gpu.load", "GPU", 12, "%", 100.0)
+    assert format_secondary(fanpct) == "fan 42%"
+    assert secondary_sort_key(temp) < secondary_sort_key(fanpct)
+    assert slim_parts([fanpct, temp, load]) == [
+        ("12%", PRIMARY), ("59°C", SECONDARY), ("fan 42%", SECONDARY)
+    ]
+    assert slim_parts([fanpct, temp])[0] == ("42%", PRIMARY)  # alone it is the big number

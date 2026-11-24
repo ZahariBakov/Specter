@@ -71,8 +71,33 @@ def format_rate(mb_per_s: float) -> str:
     return f"{mb_per_s:.0f} MB/s"
 
 
+def is_fan_percent(reading: Reading) -> bool:
+    """A fan speed given in % (key ending ".fanpct"), not a load."""
+    return reading.key.endswith(".fanpct")
+
+
+def format_primary(reading: Reading) -> str:
+    """The big number, with the reading's mark in front: "45%", "~45%" (approximate)."""
+    return f"{reading.short}{format_value(reading)}" if reading.short else format_value(reading)
+
+
+def secondary_sort_key(reading: Reading) -> Tuple[int, str]:
+    """Order of the small values: memory-like (has a maximum, not %), °C, fan, the rest."""
+    if reading.maximum is not None and reading.unit != "%":
+        group = 0
+    elif reading.unit == "°C":
+        group = 1
+    elif reading.unit == "RPM" or is_fan_percent(reading):
+        group = 2
+    else:
+        group = 3
+    return group, reading.key
+
+
 def format_secondary(reading: Reading) -> str:
-    """Value for the small line under the big number: "0.9/3.8GB", "59°C"."""
+    """Value for the small line under the big number: "0.9/3.8GB", "59°C", "fan 42%"."""
+    if is_fan_percent(reading):
+        return f"fan {format_value(reading)}"
     if reading.maximum is not None and reading.unit != "%":
         return f"{reading.value:.1f}/{reading.maximum:.1f}{reading.unit}"
     return format_value(reading)
@@ -84,10 +109,13 @@ def pick_primary(readings: list[Reading]) -> Optional[Reading]:
     None means the tile has no bar (fan speed, disk and network rates).
     """
     for reading in readings:
-        if reading.unit == "%":
+        if reading.unit == "%" and not is_fan_percent(reading):
             return reading
     for reading in readings:
-        if reading.maximum is not None:
+        if reading.maximum is not None and not is_fan_percent(reading):
+            return reading
+    for reading in readings:  # fan % only when there is nothing else
+        if is_fan_percent(reading):
             return reading
     return None
 
@@ -129,8 +157,12 @@ def slim_items(readings: list[Reading]) -> List[Tuple[str, str, Reading]]:
     primary = pick_primary(readings)
     if primary is None:
         return [(f"{r.short} {format_value(r)}".strip(), PRIMARY, r) for r in readings]
-    others = [(format_value(r), SECONDARY, r) for r in readings if r is not primary]
-    return [(format_value(primary), PRIMARY, primary)] + others
+    others = sorted((r for r in readings if r is not primary), key=secondary_sort_key)
+    texts = [
+        (f"fan {format_value(r)}" if is_fan_percent(r) else format_value(r), SECONDARY, r)
+        for r in others
+    ]
+    return [(format_primary(primary), PRIMARY, primary)] + texts
 
 
 def slim_parts(readings: list[Reading]) -> List[Tuple[str, str]]:
@@ -226,9 +258,9 @@ class MetricTile(tk.Frame):
 
     def update_readings(self, readings: list[Reading]) -> None:
         primary = pick_primary(readings) or readings[0]
-        others = [r for r in readings if r is not primary]
+        others = sorted((r for r in readings if r is not primary), key=secondary_sort_key)
 
-        self._value.config(text=format_value(primary))
+        self._value.config(text=format_primary(primary))
 
         fraction = reading_fraction(primary)
         self._bar.set_fraction(fraction)

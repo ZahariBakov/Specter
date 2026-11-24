@@ -53,7 +53,8 @@ class Poller:
         for provider in self._providers:
             try:
                 for reading in provider.read():
-                    snapshot.readings[reading.key] = reading
+                    # the first provider (best priority) that gives a key wins
+                    snapshot.readings.setdefault(reading.key, reading)
             except Exception:
                 log.exception("Provider %s failed to read", provider.name)
         return snapshot

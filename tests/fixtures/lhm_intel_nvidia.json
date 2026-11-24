@@ -1,0 +1,128 @@
+{
+  "id": 0, "Text": "Sensor", "Min": "Min", "Value": "Value", "Max": "Max", "ImageURL": "",
+  "Children": [
+    {
+      "id": 1, "Text": "DESKTOP-TEST", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/computer.png",
+      "Children": [
+        {
+          "id": 2, "Text": "ASUS PRIME B660-PLUS D4", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/mainboard.png",
+          "Children": [
+            {
+              "id": 3, "Text": "Nuvoton NCT6798D", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/chip.png",
+              "Children": [
+                {
+                  "id": 4, "Text": "Voltages", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/voltage.png",
+                  "Children": [
+                    {"id": 5, "Text": "Vcore", "Min": "0.720 V", "Value": "1.104 V", "Max": "1.320 V", "SensorId": "/lpc/nct6798d/0/voltage/0", "Type": "Voltage", "ImageURL": "images/transparent.png", "Children": []}
+                  ]
+                },
+                {
+                  "id": 6, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+                  "Children": [
+                    {"id": 7, "Text": "Motherboard", "Min": "30.0 °C", "Value": "34.0 °C", "Max": "36.0 °C", "SensorId": "/lpc/nct6798d/0/temperature/2", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+                  ]
+                },
+                {
+                  "id": 8, "Text": "Fans", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/fan.png",
+                  "Children": [
+                    {"id": 9, "Text": "Fan #1", "Min": "0 RPM", "Value": "1123 RPM", "Max": "1450 RPM", "SensorId": "/lpc/nct6798d/0/fan/0", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []},
+                    {"id": 10, "Text": "Fan #2", "Min": "0 RPM", "Value": "842 RPM", "Max": "900 RPM", "SensorId": "/lpc/nct6798d/0/fan/1", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []},
+                    {"id": 11, "Text": "Fan #3", "Min": "0 RPM", "Value": "0 RPM", "Max": "0 RPM", "SensorId": "/lpc/nct6798d/0/fan/2", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []}
+                  ]
+                },
+                {
+                  "id": 12, "Text": "Controls", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/control.png",
+                  "Children": [
+                    {"id": 13, "Text": "Fan #1", "Min": "30.2 %", "Value": "45.1 %", "Max": "60.0 %", "SensorId": "/lpc/nct6798d/0/control/0", "Type": "Control", "ImageURL": "images/transparent.png", "Children": []}
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 14, "Text": "Intel Core i7-12700K", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/cpu.png",
+          "Children": [
+            {
+              "id": 15, "Text": "Clocks", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/clock.png",
+              "Children": [
+                {"id": 16, "Text": "P-Core #1", "Min": "800.0 MHz", "Value": "4689.5 MHz", "Max": "4988.1 MHz", "SensorId": "/intelcpu/0/clock/1", "Type": "Clock", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 17, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+              "Children": [
+                {"id": 18, "Text": "CPU Package", "Min": "32.0 °C", "Value": "45.0 °C", "Max": "78.0 °C", "SensorId": "/intelcpu/0/temperature/6", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []},
+                {"id": 19, "Text": "Core Max", "Min": "30.0 °C", "Value": "47.0 °C", "Max": "80.0 °C", "SensorId": "/intelcpu/0/temperature/7", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 20, "Text": "Load", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/load.png",
+              "Children": [
+                {"id": 21, "Text": "CPU Total", "Min": "0.4 %", "Value": "12.3 %", "Max": "100.0 %", "SensorId": "/intelcpu/0/load/0", "Type": "Load", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 22, "Text": "Powers", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/power.png",
+              "Children": [
+                {"id": 23, "Text": "CPU Package", "Min": "8.1 W", "Value": "24.7 W", "Max": "141.2 W", "SensorId": "/intelcpu/0/power/0", "Type": "Power", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        },
+        {
+          "id": 24, "Text": "Generic Memory", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/ram.png",
+          "Children": [
+            {
+              "id": 25, "Text": "Data", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/power.png",
+              "Children": [
+                {"id": 26, "Text": "Memory Used", "Min": "9.1 GB", "Value": "9.9 GB", "Max": "12.4 GB", "SensorId": "/ram/data/0", "Type": "Data", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        },
+        {
+          "id": 27, "Text": "NVIDIA GeForce RTX 3060", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/nvidia.png",
+          "Children": [
+            {
+              "id": 28, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+              "Children": [
+                {"id": 29, "Text": "GPU Core", "Min": "38.0 °C", "Value": "52.0 °C", "Max": "71.0 °C", "SensorId": "/gpu-nvidia/0/temperature/0", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []},
+                {"id": 30, "Text": "GPU Hot Spot", "Min": "-", "Value": "-", "Max": "-", "SensorId": "/gpu-nvidia/0/temperature/2", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 31, "Text": "Load", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/load.png",
+              "Children": [
+                {"id": 32, "Text": "GPU Core", "Min": "0.0 %", "Value": "7.0 %", "Max": "99.0 %", "SensorId": "/gpu-nvidia/0/load/0", "Type": "Load", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 33, "Text": "Fans", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/fan.png",
+              "Children": [
+                {"id": 34, "Text": "GPU Fan 1", "Min": "0 RPM", "Value": "1350 RPM", "Max": "2100 RPM", "SensorId": "/gpu-nvidia/0/fan/1", "Type": "Fan", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            },
+            {
+              "id": 35, "Text": "SmallData", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/memory.png",
+              "Children": [
+                {"id": 36, "Text": "GPU Memory Used", "Min": "512.0 MB", "Value": "1234.0 MB", "Max": "4021.0 MB", "SensorId": "/gpu-nvidia/0/smalldata/1", "Type": "SmallData", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        },
+        {
+          "id": 37, "Text": "Samsung SSD 980 PRO 1TB", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/hdd.png",
+          "Children": [
+            {
+              "id": 38, "Text": "Temperatures", "Min": "", "Value": "", "Max": "", "ImageURL": "images_icon/temperature.png",
+              "Children": [
+                {"id": 39, "Text": "Temperature", "Min": "35.0 °C", "Value": "41.0 °C", "Max": "49.0 °C", "SensorId": "/nvme/0/temperature/0", "Type": "Temperature", "ImageURL": "images/transparent.png", "Children": []}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
