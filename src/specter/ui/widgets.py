@@ -22,6 +22,8 @@ RED = "#ff5b5b"
 SEGMENTS = 8
 HISTORY = 60  # values kept for the sparkline
 SPARK_HEIGHT = 22  # px
+SPARK_PAD = 4  # px above the sparkline
+SPARK_EXTRA = SPARK_HEIGHT + SPARK_PAD  # how much taller a tile gets with its sparkline
 TEMP_WARN = 70  # °C: yellow from here
 TEMP_HOT = 85  # °C: red from here
 
@@ -213,9 +215,12 @@ class MetricTile(tk.Frame):
         self._bar.pack(anchor="w")
         self._sub.pack(anchor="w", pady=(3, 0))
 
+    spark_on = False  # is the sparkline showing?
+
     def set_sparkline(self, on: bool) -> None:
+        self.spark_on = on
         if on:
-            self._spark.pack(anchor="w", pady=(4, 0), before=self._sub)
+            self._spark.pack(anchor="w", pady=(SPARK_PAD, 0), before=self._sub)
         else:
             self._spark.pack_forget()
 
@@ -303,6 +308,16 @@ class SlimTile(tk.Frame):
             else:
                 fg, font = reading_colour(reading, SUB_FG), ("TkDefaultFont", 9)
             self._labels[i].config(text=text, fg=fg, font=font)
+
+
+def tile_heights(tile: tk.Frame) -> Tuple[int, int]:
+    """(height without a sparkline, height with one), whichever way the tile is showing now."""
+    height = tile.winfo_reqheight()
+    if not hasattr(tile, "set_sparkline"):  # this kind of tile never has one
+        return height, height
+    if getattr(tile, "spark_on", False):
+        return height - SPARK_EXTRA, height
+    return height, height + SPARK_EXTRA
 
 
 def make_tile(master: tk.Misc, readings: list[Reading]) -> tk.Frame:

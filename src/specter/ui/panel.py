@@ -8,11 +8,20 @@ import tkinter as tk
 from typing import Callable, Iterable, Tuple
 
 from specter.core.models import Snapshot
-from specter.ui.layout import GAP_X, GAP_Y, choose_layout, fit_row, grid_size
+from specter.ui.layout import (
+    COMPACT,
+    GAP_X,
+    GAP_Y,
+    SLIM,
+    choose_layout,
+    fit_row,
+    grid_size,
+    height_step,
+)
 from specter.ui.clickthrough import ClickThrough
 from specter.ui.popup import ACCENT, MenuHooks, PopupMenu
 from specter.ui.screen import clamp, clamp_point, screen_bounds
-from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile
+from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile, tile_heights
 
 OPACITY_STEPS = [1.0, 0.85, 0.7, 0.55, 0.4]
 INTERVAL_STEPS = [500, 1000, 2000]  # ms between sensor reads
@@ -138,7 +147,10 @@ class PanelWindow:
         self._tiles: dict[str, tk.Frame] = {}
         self._labels: dict[str, str] = {}  # tile group -> name shown in the menu
         self._slim_tiles: dict[str, SlimTile] = {}  # the same devices, one line each
-        self._cell: Size = (1, 1)  # largest tile seen so far (only grows, so the layout doesn't flicker)
+        # Largest tile seen so far (only grows, so the layout doesn't flicker): width, and height
+        # without / with a sparkline.
+        self._cell_w, self._plain_h, self._full_h = 1, 1, 1
+        self._compact = False  # sparklines on, but hidden because the window is too short
         self._slim_widths: dict[str, int] = {}  # widest each slim tile has been
         self._slim_h = 1  # tallest slim tile
         self._slim = False  # showing the slim strip
@@ -207,7 +219,7 @@ class PanelWindow:
             if tile is None:
                 tile = make_tile(self._frame, readings)
                 if hasattr(tile, "set_sparkline"):
-                    tile.set_sparkline(self._sparklines)
+                    tile.set_sparkline(self._sparks_on())
                 self._tiles[group] = tile
                 self._slim_tiles[group] = SlimTile(self._frame, readings[0].label)
                 added = True
@@ -227,19 +239,24 @@ class PanelWindow:
         if not shown:
             return
         self._frame.update_idletasks()  # so the tiles report their new size
-        old = (1, 1) if reset else self._cell
+        old = (1, 1, 1) if reset else (self._cell_w, self._plain_h, self._full_h)
         old_slim = {} if reset else self._slim_widths
         old_slim_h = 1 if reset else self._slim_h
+        heights = [tile_heights(self._tiles[g]) for g in shown]
         cell = (
             max(old[0], max(self._tiles[g].winfo_reqwidth() for g in shown)),
-            max(old[1], max(self._tiles[g].winfo_reqheight() for g in shown)),
+            max(old[1], max(h[0] for h in heights)),
+            max(old[2], max(h[1] for h in heights)),
         )
         slim_widths = {
             g: max(old_slim.get(g, 0), self._slim_tiles[g].winfo_reqwidth()) for g in shown
         }
         slim_h = max(old_slim_h, max(self._slim_tiles[g].winfo_reqheight() for g in shown))
-        if force or (cell, slim_widths, slim_h) != (self._cell, self._slim_widths, self._slim_h):
-            self._cell, self._slim_widths, self._slim_h = cell, slim_widths, slim_h
+        current = ((self._cell_w, self._plain_h, self._full_h), self._slim_widths, self._slim_h)
+        if force or (cell, slim_widths, slim_h) != current:
+            (self._cell_w, self._plain_h, self._full_h), self._slim_widths, self._slim_h = (
+                cell, slim_widths, slim_h
+            )
             self._relayout(force=force)
 
     # --- tiles the user can hide ----------------------------------------------
@@ -293,9 +310,36 @@ class PanelWindow:
         self._relayout()
         self._changed()
 
+    def _sparks_on(self) -> bool:
+        """Sparklines showing right now: switched on, and the window is tall enough for them."""
+        return self._sparklines and not self._compact
+
+    def _cell_size(self) -> Size:
+        """Tile size in the current state (with or without sparklines)."""
+        return self._cell_w, self._full_h if self._sparks_on() else self._plain_h
+
     def _is_slim(self, height: int) -> bool:
-        """Too short for one normal tile: show the slim strip."""
-        return height < self._cell[1] + CHROME_H
+        """Too short for one normal tile (even without its sparkline): show the slim strip."""
+        return self._step(height) == SLIM
+
+    def _step(self, height: int) -> str:
+        return height_step(height, self._plain_h, self._full_h, CHROME_H, self._sparklines)
+
+    def _set_compact(self, compact: bool) -> bool:
+        """Hide the sparklines (compact) or show them again. True if that changed anything.
+
+        Shrinking the panel goes in steps: tiles with graphs, then tiles without, then the strip.
+        """
+        if compact == self._compact:
+            return False
+        self._compact = compact
+        self._apply_sparklines()
+        return True
+
+    def _apply_sparklines(self) -> None:
+        for tile in self._tiles.values():
+            if hasattr(tile, "set_sparkline"):
+                tile.set_sparkline(self._sparks_on())
 
     def _arrows_width(self, slim: bool) -> int:
         arrows = self._slim_arrows if slim else self._big_arrows
@@ -306,7 +350,7 @@ class PanelWindow:
         is more than one tile) wide. With `height`, the smallest width at that height.
         """
         slim = height is None or self._is_slim(height)
-        cell_w = max(self._slim_widths.values(), default=1) if slim else self._cell[0]
+        cell_w = max(self._slim_widths.values(), default=1) if slim else self._cell_w
         if len(self._shown()) > 1:
             cell_w += self._arrows_width(slim)
         chrome_w = SLIM_CHROME_W if slim else CHROME_W
@@ -318,7 +362,9 @@ class PanelWindow:
             return
         if self._size is None:
             slim = False
-            cell_w, cell_h = self._cell
+            if self._set_compact(False):
+                force = True
+            cell_w, cell_h = self._cell_size()
             columns = min(DEFAULT_COLUMNS, count)
             need_w, need_h = grid_size(count, columns, cell_w, cell_h)
             size = (need_w + CHROME_W, need_h + CHROME_H)
@@ -329,7 +375,11 @@ class PanelWindow:
             min_w, _ = self.min_size(height)
             size = (max(self._size[0], min_w), height)
             self._size = size
-            slim = self._is_slim(height)
+            step = self._step(height)
+            slim = step == SLIM
+            # Too short for the graphs, tall enough for the tiles: hide just the graphs.
+            if self._set_compact(step == COMPACT):
+                force = True
             if slim:  # one row, each tile as wide as it needs
                 widths = [self._slim_widths[g] for g in self._shown()]
                 visible = fit_row(
@@ -339,8 +389,8 @@ class PanelWindow:
             else:
                 layout = choose_layout(
                     count,
-                    self._cell[0],
-                    self._cell[1],
+                    self._cell_w,
+                    self._cell_size()[1],
                     size[0] - CHROME_W,
                     size[1] - CHROME_H,
                     self._arrows_width(False),
@@ -466,9 +516,8 @@ class PanelWindow:
     def set_sparklines(self, on: bool) -> None:
         """A small history graph under each bar. Tiles get taller, so measure again."""
         self._sparklines = on
-        for tile in self._tiles.values():
-            if hasattr(tile, "set_sparkline"):
-                tile.set_sparkline(on)
+        self._compact = False  # _relayout decides again for the current height
+        self._apply_sparklines()
         self._measure(force=True, reset=True)
         self._changed()
 

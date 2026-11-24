@@ -97,6 +97,9 @@ icon, autostart toggle, README with screenshots in `docs/images/`. 65 tests.
 Screenshots: use `import -window root -crop ...` (`xwd` failed with BadColor); open the menu with a
 local grab (`Toplevel.grab_set_global = Toplevel.grab_set`) or `import` may hang; put the panel on a
 plain backdrop window so no private windows are captured. A locked screen shows only the lock greeter.
+2026-11-24: shrinking goes in three steps when sparklines are on: tiles with graphs, then tiles with the
+graphs hidden (`height_step()` in `layout.py`, `_compact` in `panel.py`; the setting stays on), then the
+slim strip. The tallest tile height without/with graph is tracked as `_plain_h`/`_full_h`. 67 tests.
 
 # Plan
 

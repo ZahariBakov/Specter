@@ -73,3 +73,24 @@ def test_fit_row_fills_space_next_to_arrows_from_first():
 
 def test_fit_row_shows_at_least_one():
     assert fit_row([300, 50], 100, ARROWS) == 1
+
+
+def test_height_steps_when_shrinking_with_sparklines():
+    from specter.ui.layout import COMPACT, FULL, SLIM, height_step
+
+    plain, full, chrome = 82, 108, 26  # tile heights without / with a graph, and the padding
+    step = lambda h: height_step(h, plain, full, chrome, True)  # noqa: E731
+    assert step(300) == step(full + chrome) == FULL  # tall enough for the graphs
+    assert step(full + chrome - 1) == COMPACT  # graphs go first...
+    assert step(plain + chrome) == COMPACT
+    assert step(plain + chrome - 1) == SLIM  # ...then the strip
+    assert step(30) == SLIM
+
+
+def test_height_steps_without_sparklines_have_no_middle_step():
+    from specter.ui.layout import COMPACT, FULL, SLIM, height_step
+
+    plain, full, chrome = 82, 108, 26
+    assert height_step(plain + chrome, plain, full, chrome, False) == FULL
+    assert height_step(plain + chrome - 1, plain, full, chrome, False) == SLIM
+    assert all(height_step(h, plain, full, chrome, False) != COMPACT for h in range(20, 300))

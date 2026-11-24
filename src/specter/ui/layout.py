@@ -9,6 +9,23 @@ GAP_X = 16  # space between columns
 GAP_Y = 12  # space between rows
 
 
+SLIM, COMPACT, FULL = "slim", "compact", "full"
+
+
+def height_step(height: int, plain_h: int, full_h: int, chrome_h: int, sparklines: bool) -> str:
+    """Which of the three looks a window of this height gets, as it shrinks:
+
+    FULL: tiles with their graphs (only if sparklines are on; else the graph-less tiles are FULL),
+    COMPACT: tiles with the graphs hidden, SLIM: the one-line strip.
+    `plain_h` / `full_h` are the tile heights without / with a graph, `chrome_h` the padding.
+    """
+    if height < plain_h + chrome_h:
+        return SLIM
+    if sparklines and height < full_h + chrome_h:
+        return COMPACT
+    return FULL
+
+
 def grid_size(count: int, columns: int, cell_w: int, cell_h: int) -> tuple[int, int]:
     """Space needed for `count` tiles in `columns` columns."""
     rows = -(-count // columns)  # ceil
