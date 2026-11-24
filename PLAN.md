@@ -6,7 +6,7 @@ screenshot check, and is committed by the user before the next one starts.
 **Done so far:** CPU load + RAM, CPU temperature + fan (`linux_hwmon.py`), drag, opacity, popup
 menu, config, resizable panel (row / column / grid, then 2 → 1 tiles with ‹ › arrows),
 Phase 1 (NVIDIA GPU, rate tiles, disk and network speed), slim strip at taskbar height,
-Step 5 (popup settings, screen-edge limit).
+Step 5 (popup settings, screen-edge limit), Step 6 (wheel, temperature colours).
 
 Defaults used below for the open decisions (change them before the step that needs them):
 
@@ -90,7 +90,7 @@ Defaults used below for the open decisions (change them before the step that nee
   Windows uses `GetSystemMetrics` for the virtual screen (untested, Step 9).
 - **Tests:** config round-trip with the new fields; old config file without them still loads.
 
-### Step 6. Small panel improvements
+### Step 6. Small panel improvements ✅ (2026-11-24)
 - Mouse wheel cycles tiles when the arrows are visible (`<Button-4/5>` on X11, `<MouseWheel>` on
   Windows).
 - Temperature colours: `°C` values turn yellow at ≥ 70 and red at ≥ 85 (the big number or the

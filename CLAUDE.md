@@ -83,13 +83,17 @@ row of `SlimTile`s (`CPU 8% 35°C  RAM 9.9GB …`), each as wide as it needs (`f
 2026-11-24: **Phase 2 Step 5 done**: popup settings (hide tiles, update interval, lock, always on top,
 reset size), config saved right away, panel limited to the desktop (all monitors, can cross between
 them). `Poller.set_interval()`. 51 tests. Not checked visually (screen was locked); logic checked on :1.
+2026-11-24: **Step 6 done**: mouse wheel cycles tiles (when arrows show), `°C` values turn yellow at
+70 / red at 85 (`TEMP_WARN`/`TEMP_HOT` in `widgets.py`; the MetricTile sub line is now one label per
+value), `Config.first_tile` remembers where cycling stopped. 54 tests.
 
 # Plan
 
 The step-by-step plan is in **`PLAN.md`** (read it at the start of a session). Do the next
 unfinished step, then mark it done in `PLAN.md` and update "Current state" above.
 
-**Next:** Phase 2, Step 6: small panel improvements (wheel cycling, temperature colours).
+**Next:** Phase 2, Step 7 (sparkline, optional), Step 8 (click-through, optional), or Phase 3 (Windows,
+Step 9). Ask the user which.
 
 Machine facts for the plan: NVIDIA T600 4 GB, driver 495 (NVML works). Network interfaces
 `enp2s0`, `enp3s0`, `lo`. Disks `nvme0n1`, `sdh`, plus ~26 snap `loop*` devices that disk rates

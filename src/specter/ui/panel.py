@@ -65,6 +65,7 @@ class PanelWindow:
         opacity: float = 0.85,
         size: Size | None = None,
         hidden_tiles: Iterable[str] = (),
+        first_tile: str | None = None,
         locked: bool = False,
         topmost: bool = True,
         interval_ms: int = 1000,
@@ -106,7 +107,7 @@ class PanelWindow:
         self._size: Size | None = size  # None = fit the content (user never resized)
         self._applied: Size | None = None  # size last given to the window
         self._layout: Size | None = None  # (visible tiles, columns)
-        self._first = 0  # first visible tile when not all fit
+        self._first_tile = first_tile  # group of the first visible tile when not all fit
         self._big_arrows = (self._make_arrow("‹", -1, 16), self._make_arrow("›", 1, 16))
         self._slim_arrows = (self._make_arrow("‹", -1, 11), self._make_arrow("›", 1, 11))
 
@@ -142,6 +143,9 @@ class PanelWindow:
         root.bind("<B1-Motion>", self._motion)
         root.bind("<ButtonRelease-1>", self._release)
         root.bind("<Button-3>", self._show_menu)
+        root.bind("<Button-4>", self._wheel)  # X11 wheel
+        root.bind("<Button-5>", self._wheel)
+        root.bind("<MouseWheel>", self._wheel)  # Windows wheel
 
         self.set_opacity(opacity)
 
@@ -283,7 +287,7 @@ class PanelWindow:
             if slim:  # one row, each tile as wide as it needs
                 widths = [self._slim_widths[g] for g in self._shown()]
                 visible = fit_row(
-                    widths, size[0] - SLIM_CHROME_W, self._arrows_width(True), self._first % count
+                    widths, size[0] - SLIM_CHROME_W, self._arrows_width(True), self._first_index()
                 )
                 layout = (visible, visible)
             else:
@@ -328,8 +332,8 @@ class PanelWindow:
         # With arrows, column 0 and the last column hold them and the tiles sit in between.
         offset = 1 if cycling else 0
         if cycling:
-            self._first %= len(tiles)
-            shown = [tiles[(self._first + i) % len(tiles)] for i in range(visible)]
+            first = self._first_index()
+            shown = [tiles[(first + i) % len(tiles)] for i in range(visible)]
             arrows[0].grid(row=0, column=0, rowspan=rows, padx=(0, ARROW_GAP))
             arrows[1].grid(row=0, column=columns + 1, rowspan=rows, padx=(ARROW_GAP, 0))
         else:
@@ -372,10 +376,25 @@ class PanelWindow:
         return arrow
 
     def _cycle(self, step: int) -> None:
-        count = len(self._shown())
-        if self._layout and self._layout[0] < count:
-            self._first = (self._first + step) % count
+        groups = self._shown()
+        if self._layout and self._layout[0] < len(groups):
+            self._first_tile = groups[(self._first_index() + step) % len(groups)]
             self._relayout(force=True)  # the slim strip may fit a different number of tiles
+            self._changed()
+
+    def _first_index(self) -> int:
+        """Position of the first visible tile among the shown ones (0 if it is gone)."""
+        groups = self._shown()
+        return groups.index(self._first_tile) if self._first_tile in groups else 0
+
+    def first_tile(self) -> str | None:
+        """Group of the tile the panel starts cycling from (saved in the config)."""
+        return self._first_tile
+
+    def _wheel(self, event: tk.Event) -> None:
+        """Mouse wheel cycles the tiles when the arrows are showing: up = back, down = forward."""
+        up = event.num == 4 or getattr(event, "delta", 0) > 0  # X11 buttons 4/5, Windows delta
+        self._cycle(-1 if up else 1)
 
     # --- opacity ------------------------------------------------------------
 

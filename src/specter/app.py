@@ -36,6 +36,7 @@ def main() -> int:
         """Called whenever a setting changes and on quit, so a crash loses nothing."""
         config.opacity = panel.opacity()
         config.hidden_tiles = panel.hidden_tiles()
+        config.first_tile = panel.first_tile()
         config.locked = panel.locked
         config.topmost = panel.topmost
         config.pos_x, config.pos_y = panel.position()
@@ -53,6 +54,7 @@ def main() -> int:
         opacity=config.opacity,
         size=size,
         hidden_tiles=config.hidden_tiles,
+        first_tile=config.first_tile,
         locked=config.locked,
         topmost=config.topmost,
         interval_ms=config.interval_ms,

@@ -89,3 +89,12 @@ def test_poller_interval_can_change():
     assert poller._interval == 0.5
     poller.set_interval(10)  # too fast: limited to 250 ms
     assert poller._interval == 0.25
+
+
+def test_config_first_tile(tmp_path):
+    path = tmp_path / "config.json"
+    assert Config.load(path).first_tile is None
+    Config(first_tile="ram").save(path)
+    assert Config.load(path).first_tile == "ram"
+    path.write_text('{"first_tile": 5}')
+    assert Config.load(path).first_tile is None

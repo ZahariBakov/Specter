@@ -52,3 +52,25 @@ def test_slim_parts_rates_keep_their_marks():
     fan = Reading("fan.rpm", "Fan", 2683, "RPM")
     assert slim_parts([down, up]) == [("↓ 11 KB/s", PRIMARY), ("↑ 2.0 MB/s", PRIMARY)]
     assert slim_parts([fan]) == [("2683 rpm", PRIMARY)]
+
+
+def test_temperature_colours():
+    from specter.ui.widgets import GREEN, RED, TEMP_HOT, TEMP_WARN, YELLOW, reading_colour, temp_colour
+
+    assert temp_colour(TEMP_WARN - 1, GREEN) == GREEN
+    assert temp_colour(TEMP_WARN, GREEN) == YELLOW
+    assert temp_colour(TEMP_HOT - 1, GREEN) == YELLOW
+    assert temp_colour(TEMP_HOT, GREEN) == RED
+    assert reading_colour(Reading("cpu.temp", "CPU", 90, "°C"), "x") == RED
+    assert reading_colour(Reading("cpu.load", "CPU", 99, "%", 100.0), "x") == "x"  # only °C warns
+
+
+def test_slim_items_keep_the_reading():
+    from specter.ui.widgets import slim_items
+
+    load = Reading("cpu.load", "CPU", 8, "%", 100.0)
+    temp = Reading("cpu.temp", "CPU", 35, "°C")
+    assert [(t, k, r) for t, k, r in slim_items([temp, load])] == [
+        ("8%", PRIMARY, load),
+        ("35°C", SECONDARY, temp),
+    ]

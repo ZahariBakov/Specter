@@ -26,6 +26,7 @@ class Config:
     width: int | None = None  # None = fit the content
     height: int | None = None
     hidden_tiles: List[str] = field(default_factory=lambda: list(DEFAULT_HIDDEN_TILES))
+    first_tile: str | None = None  # tile the panel starts cycling from (when not all fit)
     locked: bool = False  # no moving or resizing
     topmost: bool = True  # always on top
 
@@ -53,6 +54,8 @@ class Config:
             cfg.hidden_tiles = [t for t in cfg.hidden_tiles if isinstance(t, str)]
         else:
             cfg.hidden_tiles = list(DEFAULT_HIDDEN_TILES)
+        if not isinstance(cfg.first_tile, str):
+            cfg.first_tile = None
         cfg.locked = bool(cfg.locked)
         cfg.topmost = bool(cfg.topmost)
         return cfg

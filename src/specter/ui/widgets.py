@@ -19,6 +19,8 @@ YELLOW = "#f5c542"
 RED = "#ff5b5b"
 
 SEGMENTS = 8
+TEMP_WARN = 70  # °C: yellow from here
+TEMP_HOT = 85  # °C: red from here
 
 
 def level_colour(fraction: float) -> str:
@@ -27,6 +29,20 @@ def level_colour(fraction: float) -> str:
     if fraction >= 0.60:
         return YELLOW
     return GREEN
+
+
+def temp_colour(celsius: float, default: str) -> str:
+    """`default` while cool, yellow from TEMP_WARN, red from TEMP_HOT."""
+    if celsius >= TEMP_HOT:
+        return RED
+    if celsius >= TEMP_WARN:
+        return YELLOW
+    return default
+
+
+def reading_colour(reading: Reading, default: str) -> str:
+    """Text colour for a value: temperatures warn, everything else keeps `default`."""
+    return temp_colour(reading.value, default) if reading.unit == "°C" else default
 
 
 def format_value(reading: Reading) -> str:
@@ -84,17 +100,22 @@ def reading_fraction(reading: Reading) -> float:
 PRIMARY, SECONDARY = "primary", "secondary"
 
 
+def slim_items(readings: list[Reading]) -> List[Tuple[str, str, Reading]]:
+    """Texts for a one-line tile, as (text, kind, reading it comes from)."""
+    primary = pick_primary(readings)
+    if primary is None:
+        return [(f"{r.short} {format_value(r)}".strip(), PRIMARY, r) for r in readings]
+    others = [(format_value(r), SECONDARY, r) for r in readings if r is not primary]
+    return [(format_value(primary), PRIMARY, primary)] + others
+
+
 def slim_parts(readings: list[Reading]) -> List[Tuple[str, str]]:
     """Texts for a one-line tile, as (text, kind).
 
     CPU: [("8%", PRIMARY), ("35°C", SECONDARY)]. A device without a primary (fan,
     disk, net) shows every value as primary, with its mark: [("↓ 11 KB/s", PRIMARY), ...].
     """
-    primary = pick_primary(readings)
-    if primary is None:
-        return [(f"{r.short} {format_value(r)}".strip(), PRIMARY) for r in readings]
-    others = [(format_value(r), SECONDARY) for r in readings if r is not primary]
-    return [(format_value(primary), PRIMARY)] + others
+    return [(text, kind) for text, kind, _reading in slim_items(readings)]
 
 
 class SegmentBar(tk.Canvas):
@@ -137,7 +158,8 @@ class MetricTile(tk.Frame):
         )
         self._value = tk.Label(self, text="—", bg=BG, fg=VALUE_FG, font=("TkDefaultFont", 17, "bold"))
         self._bar = SegmentBar(self)
-        self._sub = tk.Label(self, text="", bg=BG, fg=SUB_FG, font=("TkFixedFont", 8))
+        self._sub = tk.Frame(self, bg=BG)  # one label per value, so a temperature can warn
+        self._sub_labels: list[tk.Label] = []
 
         self._title.pack(anchor="w")
         self._value.pack(anchor="w", pady=(0, 3))
@@ -154,10 +176,22 @@ class MetricTile(tk.Frame):
         self._bar.set_fraction(fraction)
         self._value.config(fg=level_colour(fraction) if fraction >= 0.6 else VALUE_FG)
 
-        sub_parts = [format_secondary(r) for r in others]
+        sub_parts = [(format_secondary(r), reading_colour(r, SUB_FG)) for r in others]
         if primary.maximum is not None and primary.unit != "%":
-            sub_parts.insert(0, f"of {primary.maximum:.1f}{primary.unit}")
-        self._sub.config(text="  ".join(sub_parts) or " ")
+            sub_parts.insert(0, (f"of {primary.maximum:.1f}{primary.unit}", SUB_FG))
+        sub_parts = sub_parts or [(" ", SUB_FG)]  # keep the line's height
+        while len(self._sub_labels) < len(sub_parts):
+            label = tk.Label(self._sub, bg=BG, padx=0, font=("TkFixedFont", 8))
+            label.pack(side="left")
+            self._sub_labels.append(label)
+        for i, label in enumerate(self._sub_labels):
+            if i < len(sub_parts):
+                text, colour = sub_parts[i]
+                gap = "  " if i < len(sub_parts) - 1 else ""
+                label.config(text=text + gap, fg=colour)
+                label.pack(side="left")
+            else:
+                label.pack_forget()
 
 
 class RateTile(tk.Frame):
@@ -188,7 +222,7 @@ class RateTile(tk.Frame):
                 value = tk.Label(frame, bg=BG, fg=VALUE_FG, font=("TkDefaultFont", size, "bold"))
                 value.pack(side="left")
                 row = self._rows[reading.key] = (mark, value)
-            row[1].config(text=format_value(reading))
+            row[1].config(text=format_value(reading), fg=reading_colour(reading, VALUE_FG))
 
 
 class SlimTile(tk.Frame):
@@ -204,7 +238,7 @@ class SlimTile(tk.Frame):
     def update_readings(self, readings: list[Reading]) -> None:
         primary = pick_primary(readings)
         fraction = reading_fraction(primary) if primary else 0.0
-        for i, (text, kind) in enumerate(slim_parts(readings)):
+        for i, (text, kind, reading) in enumerate(slim_items(readings)):
             if i == len(self._labels):
                 label = tk.Label(self, bg=BG, padx=0)
                 label.pack(side="left", padx=(0 if i == 0 else 6, 0))
@@ -213,7 +247,7 @@ class SlimTile(tk.Frame):
                 fg = level_colour(fraction) if fraction >= 0.6 else VALUE_FG
                 font = ("TkDefaultFont", 10, "bold")
             else:
-                fg, font = SUB_FG, ("TkDefaultFont", 9)
+                fg, font = reading_colour(reading, SUB_FG), ("TkDefaultFont", 9)
             self._labels[i].config(text=text, fg=fg, font=font)
 
 
