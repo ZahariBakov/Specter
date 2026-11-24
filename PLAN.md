@@ -101,7 +101,11 @@ Defaults used below for the open decisions (change them before the step that nee
 - Each tile keeps the last 60 primary values (`collections.deque(maxlen=60)`) and draws a thin
   line on a small Canvas under the bar. Off by default, toggle in the popup.
 
-### Step 8. Click-through mode (optional, needs research)
+### Step 8. Click-through mode (optional) ✅ X11 done 2026-11-24, Windows later
+Done: `ui/clickthrough.py` (X Fixes input shape through ctypes). Only a 14 px grip in the top-left
+corner takes clicks (a blue dot marks it); a click on it opens the menu to switch off. Session only,
+not saved. Windows: `WS_EX_TRANSPARENT` still to do (same grip idea needs `SetWindowRgn` or a
+second small window). Original notes:
 - X11: empty input shape with Xfixes via `ctypes` (`XFixesSetWindowShapeRegion`). Windows:
   `WS_EX_LAYERED | WS_EX_TRANSPARENT` via `ctypes.windll.user32`.
 - Problem: in click-through mode the panel can't receive the right-click. Exit it with a global
@@ -141,14 +145,21 @@ virtual-screen bounds via `GetSystemMetrics` (`ui/screen.py`).
 
 ## Phase 4 — release
 
-### Step 11. Builds
+### Step 11. Builds (Linux done 2026-11-24, Windows later)
+Done: `tools/build.py` (PyInstaller one-file, `pip install -e ".[build]"`), icon `src/specter/assets/icon.png`
++ `icon.ico` from `tools/make_icon.py`, the app sets it as window icon. Linux build ran fine here
+(10 MB). Still to do: test it on a newer distro, Windows build, optional GitHub Actions.
+Original notes:
 - PyInstaller one-file builds, with a `build.py` or a short section in the README.
 - Linux: build on this machine (glibc 2.31 → runs on newer distros). Test on a newer distro
   (live USB or VM).
 - Windows: build on Windows. Optional: a GitHub Actions workflow for both.
 - An app icon (`.png` for Linux, `.ico` for Windows).
 
-### Step 12. Start with the system
+### Step 12. Start with the system (Linux + README done 2026-11-24, Windows later)
+Done: `autostart.py` (XDG `~/.config/autostart/specter.desktop`), menu toggle **Start at login**, README
+with screenshots (`docs/images/`). Still to do: Windows autostart; the `v0.2.0` tag (user).
+Original notes:
 - Popup toggle **Start at login**.
 - Linux: write or remove `~/.config/autostart/specter.desktop`.
 - Windows: a shortcut in the Startup folder, or the `HKCU\...\Run` registry key.

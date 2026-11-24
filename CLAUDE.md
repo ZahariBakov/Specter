@@ -59,6 +59,9 @@ sensors/ (providers) ──► core/poller.py (thread) ──► queue ──►
 | `src/specter/ui/widgets.py` | `MetricTile` (big number + bar, optional `Sparkline`), `RateTile` (rows, no bar), `make_tile()` picks one; `SlimTile` (one line, for the slim strip); `SegmentBar`, colours (green <60 %, yellow ≥60, red ≥85) |
 | `src/specter/ui/popup.py` | Custom right-click menu: OPACITY / TILES / UPDATE pills, Lock position, Always on top, Reset size, Quit. `MenuHooks` holds its callbacks. Global grab, closes on outside click, Esc or after 20 s idle |
 | `src/specter/ui/screen.py` | `screen_bounds()` = all monitors together; `clamp()` keeps the panel (and menu) on the desktop |
+| `src/specter/autostart.py` | "Start at login": XDG autostart entry on Linux (`supported()` is False elsewhere) |
+| `src/specter/ui/clickthrough.py` | X11 click-through: empty input shape except a corner grip, via ctypes + libXfixes |
+| `tools/build.py`, `tools/make_icon.py` | PyInstaller one-file build; draws `assets/icon.png`/`.ico` (no dependencies) |
 | `src/specter/config.py` | JSON config (opacity, position, size, interval, `hidden_tiles` (default disk, fan), `locked`, `topmost`) in the platformdirs config dir. Saved on every menu change and on Quit |
 | `src/specter/app.py` | Wires everything together. Shows the panel top-right on first start |
 
@@ -89,14 +92,19 @@ value), `Config.first_tile` remembers where cycling stopped. 54 tests.
 2026-11-24: **Step 7 done**: optional sparklines (`Sparkline` in `widgets.py`, 60 samples, only `MetricTile`,
 toggle in the menu, `Config.sparklines`, off by default). **Step 9 code written but never run on Windows**
 (cursor names, `-toolwindow`, popup closes on focus loss, `screen_bounds()` via `GetSystemMetrics`). 58 tests.
+2026-11-24: Linux part of **Steps 8, 11, 12**: click-through (X11, session only), PyInstaller build +
+icon, autostart toggle, README with screenshots in `docs/images/`. 65 tests.
+Screenshots: use `import -window root -crop ...` (`xwd` failed with BadColor); open the menu with a
+local grab (`Toplevel.grab_set_global = Toplevel.grab_set`) or `import` may hang; put the panel on a
+plain backdrop window so no private windows are captured. A locked screen shows only the lock greeter.
 
 # Plan
 
 The step-by-step plan is in **`PLAN.md`** (read it at the start of a session). Do the next
 unfinished step, then mark it done in `PLAN.md` and update "Current state" above.
 
-**Next:** the user tests Step 9 on Windows (checklist in `PLAN.md`) and reports; then fix. After that
-Step 10 (Windows CPU temperature) or Step 8 (click-through, optional).
+**Next:** all Linux steps of the plan are done. Left: the Windows steps (9 test, 10, 11, 12, click-through
+on Windows), the user tags `v0.2.0`, and the "Later" list (alerts, AMD, themes, specs view).
 
 Machine facts for the plan: NVIDIA T600 4 GB, driver 495 (NVML works). Network interfaces
 `enp2s0`, `enp3s0`, `lo`. Disks `nvme0n1`, `sdh`, plus ~26 snap `loop*` devices that disk rates

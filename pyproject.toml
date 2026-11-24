@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 nvidia = ["nvidia-ml-py>=11.495"]
 dev = ["pytest>=8.0"]
+build = ["pyinstaller>=6"]
 
 [project.gui-scripts]
 specter = "specter.app:main"

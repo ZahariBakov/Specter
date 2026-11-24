@@ -109,7 +109,7 @@ def sparkline_points(values: List[float], width: int, height: int) -> List[float
     if len(values) < 2 or width <= 1 or height <= 1:
         return []
     step = (width - 1) / (HISTORY - 1)
-    top, bottom = 1, height - 2  # keep the 1 px line inside the canvas
+    top, bottom = 2, height - 3  # keep the 2 px line inside the canvas
     points: List[float] = []
     for i, value in enumerate(values[-HISTORY:]):
         age = min(len(values), HISTORY) - 1 - i
@@ -191,7 +191,7 @@ class Sparkline(tk.Canvas):
         self.create_line(0, height - 1, width, height - 1, fill=SEG_OFF)  # baseline
         points = sparkline_points(list(self._values), width, height)
         if points:
-            self.create_line(*points, fill=level_colour(self._values[-1]), width=1)
+            self.create_line(*points, fill=level_colour(self._values[-1]), width=2)
 
 
 class MetricTile(tk.Frame):

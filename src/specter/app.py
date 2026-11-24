@@ -6,7 +6,9 @@ import logging
 import queue
 import sys
 import tkinter as tk
+from pathlib import Path
 
+from specter import autostart
 from specter.config import Config
 from specter.core.models import Snapshot
 from specter.core.poller import Poller
@@ -14,6 +16,7 @@ from specter.sensors import create_providers
 from specter.ui.panel import PanelWindow
 from specter.ui.screen import screen_bounds
 
+ICON = Path(__file__).parent / "assets" / "icon.png"
 UI_CHECK_MS = 100  # how often the UI picks up new snapshots
 
 
@@ -22,6 +25,12 @@ def main() -> int:
 
     config = Config.load()
     root = tk.Tk()
+    try:  # the icon task switchers and window lists show (the panel has no title bar)
+        icon = tk.PhotoImage(master=root, file=str(ICON))
+        root.iconphoto(True, icon)
+        root._specter_icon = icon  # type: ignore[attr-defined]  # keep it alive
+    except tk.TclError:
+        logging.getLogger(__name__).info("Could not load the app icon %s", ICON)
 
     # Tk is not thread-safe: the poller thread only puts data in a queue,
     # and the UI thread takes it out with root.after().
@@ -61,6 +70,8 @@ def main() -> int:
         topmost=config.topmost,
         interval_ms=config.interval_ms,
         on_interval=on_interval,
+        get_autostart=autostart.is_enabled if autostart.supported() else None,
+        on_autostart=autostart.set_enabled if autostart.supported() else None,
         on_change=save_settings,
         on_quit=on_quit,
     )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import tkinter as tk
 from dataclasses import dataclass
-from typing import Any, Callable, List, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from specter.ui.screen import clamp, screen_bounds
 
@@ -44,6 +44,12 @@ class MenuHooks:
     on_topmost: Callable[[bool], None]
     on_reset_size: Callable[[], None]
     on_quit: Callable[[], None]
+    # "Start at login": left out (None) where it isn't supported.
+    get_autostart: Optional[Callable[[], bool]] = None
+    on_autostart: Optional[Callable[[bool], object]] = None
+    # "Click-through": left out (None) where it isn't supported.
+    get_click_through: Optional[Callable[[], bool]] = None
+    on_click_through: Optional[Callable[[bool], None]] = None
 
 
 class PopupMenu:
@@ -109,6 +115,10 @@ class PopupMenu:
         self._toggle(body, "Sparklines", hooks.get_sparklines, hooks.on_sparklines)
         self._toggle(body, "Lock position", hooks.get_locked, hooks.on_locked)
         self._toggle(body, "Always on top", hooks.get_topmost, hooks.on_topmost)
+        if hooks.get_click_through and hooks.on_click_through:
+            self._toggle(body, "Click-through", hooks.get_click_through, hooks.on_click_through)
+        if hooks.get_autostart and hooks.on_autostart:
+            self._toggle(body, "Start at login", hooks.get_autostart, hooks.on_autostart)
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", padx=2, pady=4)
         self._item(body, "Reset size", self._reset_size)
         self._item(body, "Quit Specter", self._quit, fg=DANGER)

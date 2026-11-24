@@ -9,7 +9,8 @@ from typing import Callable, Iterable, Tuple
 
 from specter.core.models import Snapshot
 from specter.ui.layout import GAP_X, GAP_Y, choose_layout, fit_row, grid_size
-from specter.ui.popup import MenuHooks, PopupMenu
+from specter.ui.clickthrough import ClickThrough
+from specter.ui.popup import ACCENT, MenuHooks, PopupMenu
 from specter.ui.screen import clamp, clamp_point, screen_bounds
 from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile
 
@@ -24,6 +25,8 @@ TILE_ORDER = ("cpu", "gpu", "ram", "disk", "net", "fan")  # unknown devices go l
 EDGE = 6  # px along the window edge that start a resize instead of a move
 SLIM_EDGE = 4  # the same in the slim strip, which is only ~26 px tall
 ARROW_GAP = 8
+GRIP = 14  # px: the corner that still takes clicks in click-through mode
+GRIP_DOT = 7  # px: the dot drawn in it
 
 # (horizontal edge, vertical edge) -> cursor. -1 = left/top, 1 = right/bottom.
 _RESIZE_CURSORS = {
@@ -94,6 +97,8 @@ class PanelWindow:
         topmost: bool = True,
         interval_ms: int = 1000,
         on_interval: Callable[[int], None] | None = None,
+        get_autostart: Callable[[], bool] | None = None,
+        on_autostart: Callable[[bool], object] | None = None,
         on_change: Callable[[], None] | None = None,
         on_quit: Callable[[], None] | None = None,
     ) -> None:
@@ -109,6 +114,9 @@ class PanelWindow:
         self._topmost = topmost
         self._interval = interval_ms
         self._pos: Size | None = None  # where we last put the window
+        self._click_through = False  # session only: not saved, so a restart is always clickable
+        self._clicker = ClickThrough() if ClickThrough.supported() else None
+        self._grip: tk.Frame | None = None
 
         root.title("Specter")
         root.configure(bg=BG)
@@ -165,6 +173,10 @@ class PanelWindow:
                 on_topmost=self.set_topmost,
                 on_reset_size=self.reset_size,
                 on_quit=self._quit,
+                get_autostart=get_autostart,
+                on_autostart=on_autostart,
+                get_click_through=(lambda: self._click_through) if self._clicker else None,
+                on_click_through=self.set_click_through if self._clicker else None,
             ),
         )
 
@@ -480,6 +492,41 @@ class PanelWindow:
         self.root.attributes("-topmost", topmost)
         self._changed()
 
+    @property
+    def click_through(self) -> bool:
+        return self._click_through
+
+    def set_click_through(self, on: bool) -> None:
+        """Clicks go to the window underneath, except in a small corner with a dot: click that
+        (or right-click it) to get the menu back. Not saved, so a restart is clickable again."""
+        if self._clicker is None or on == self._click_through:
+            return
+        self.root.update_idletasks()
+        windows = self._input_windows()
+        if on:
+            ok = self._clicker.set_input_rects(windows, [(0, 0, GRIP, GRIP)])
+        else:
+            ok = self._clicker.reset(windows)
+        if not ok:
+            return  # the menu shows the old state again
+        self._click_through = on
+        self._drag_start = self._resize_start = None
+        if on:
+            if self._grip is None:
+                self._grip = tk.Frame(self.root, bg=ACCENT, width=GRIP_DOT, height=GRIP_DOT)
+            self._grip.place(x=2, y=2)
+            self._grip.lift()
+            self._set_cursor("hand2")
+        else:
+            if self._grip is not None:
+                self._grip.place_forget()
+            self._set_cursor("")
+
+    def _input_windows(self) -> list[int]:
+        """X ids of the window and the wrapper window Tk puts around it: both need the shape."""
+        assert self._clicker is not None
+        return self._clicker.window_chain(self.root.winfo_id())
+
     def _choose_interval(self, interval_ms: int) -> None:
         self._interval = interval_ms
         if self._on_interval:
@@ -525,10 +572,15 @@ class PanelWindow:
             self.root.configure(cursor=cursor)
 
     def _hover(self, event: tk.Event) -> None:
+        if self._click_through:
+            return
         self._set_cursor("" if self._locked else resize_cursor(self._edges(event)))
 
     def _press(self, event: tk.Event) -> None:
         self._hide_menu()
+        if self._click_through:  # only the grip gets here: any click opens the menu
+            self._menu.open(event.x_root, event.y_root)
+            return
         if self._locked:
             return
         edges = self._edges(event)
@@ -595,6 +647,8 @@ class PanelWindow:
         self._menu.close()
 
     def _quit(self) -> None:
+        if self._clicker is not None:
+            self._clicker.close()
         if self._on_quit:
             self._on_quit()
         else:
