@@ -6,6 +6,29 @@ Inspired by Speccy and GPU Temp.
 
 ![The panel](docs/images/panel.png)
 
+> **Early test version.** Specter works on the machines it was tried on, but every PC exposes its
+> sensors differently. If something is missing or looks wrong, please tell me:
+> see [Trying Specter? Send feedback](#trying-specter-send-feedback).
+
+## Download and run
+
+Get the latest version from the **[Releases page](https://github.com/ZahariBakov/Specter/releases)**.
+No Python or installation needed.
+
+**Windows 10 / 11:** download `specter.exe` and double-click it.
+Windows may show *"Windows protected your PC"*, because the program is new and not signed.
+Click **More info → Run anyway**.
+
+**Linux (X11 desktop):** download `specter`, then:
+
+```bash
+chmod +x specter
+./specter
+```
+
+The panel appears in the top-right corner of the screen. **Right-click it for the settings menu.**
+To close it: right-click → **Quit Specter**.
+
 ## What it shows
 
 | Tile | Values |
@@ -17,9 +40,9 @@ Inspired by Speccy and GPU Temp.
 | NET | download and upload speed |
 | FAN | fastest spinning fan |
 
-Which of these you get depends on your hardware and OS. On Windows, temperatures and fans come
-from [LibreHardwareMonitor](docs/sensors.md#set-up-librehardwaremonitor) if it runs, with a rough
-CPU temperature fallback otherwise. Details per OS and GPU vendor: **[docs/sensors.md](docs/sensors.md)**.
+Which of these you get depends on your hardware and OS: a tile only appears when your PC reports
+that value. DISK and FAN are hidden at first; switch them on in the menu (TILES).
+Details per OS and GPU vendor: **[docs/sensors.md](docs/sensors.md)**.
 
 Values turn yellow and red when they get high (load from 60 %, temperatures from 70 °C).
 A tile with a bar can also draw a short history graph (sparkline).
@@ -40,14 +63,51 @@ A tile with a bar can also draw a short history graph (sparkline).
 
   Opacity, which tiles to show, how often to read the sensors, sparklines, lock the position,
   click-through, always on top, start at login, reset the size, quit.
-  Settings are saved when you change them, in `config.json` in your user config folder
-  (`~/.config/specter/` on Linux, `%LOCALAPPDATA%\specter\` on Windows).
+  Settings are saved as soon as you change them.
 
 **Click-through** lets mouse clicks go to the window under the panel (handy over a video or a
 game). A small blue dot appears in the panel's top-left corner: click it to get the menu back and
 switch click-through off. It is not saved, so a restart is always clickable.
 
-## Install and run
+## Troubleshooting
+
+| Problem | Why, and what to do |
+|---|---|
+| No **FAN** tile | Switch it on in the menu (TILES). If it is not listed there, your PC does not report fan speed. Many laptops don't, especially on Windows. |
+| No CPU temperature or fans **on Windows** | Windows itself only offers a rough CPU temperature on some PCs. For real values, run [LibreHardwareMonitor](docs/sensors.md#set-up-librehardwaremonitor) as administrator with its web server on; Specter picks it up automatically. |
+| No **GPU** tile | NVIDIA cards need the NVIDIA driver. On Linux, AMD and Intel GPUs are read from the kernel; on Windows from Windows' own counters. If it is still missing, please send the sensor report (below). |
+| GPU load shows **"~"** | Intel GPU on Linux: the real load needs root, so Specter shows the GPU clock speed as an estimate. |
+| **Opacity** does nothing (Linux) | Transparency needs a compositor (KWin, Mutter, Picom...). Without one the panel stays opaque. |
+| Antivirus blocks `specter.exe` | A false alarm that is common for new, unsigned programs packed with PyInstaller. You can run Specter from source instead (below). |
+| Two panels | Specter was started twice (e.g. once by Start at login). Quit one of them. |
+
+## Trying Specter? Send feedback
+
+Thank you for testing! The most useful things to send (as a
+[GitHub issue](https://github.com/ZahariBakov/Specter/issues) or directly to me):
+
+1. **Your PC:** Windows or Linux (which version), laptop or desktop, CPU and GPU model.
+2. **A screenshot** of the panel.
+3. **The sensor report**, which lists what Specter can read on your PC. Open a terminal in the folder
+   with Specter and run:
+
+   ```bat
+   specter.exe --sensors > sensors.txt
+   specter.exe --dump > dump.txt
+   ```
+
+   (Linux: `./specter --sensors > sensors.txt` and `./specter --dump > dump.txt`.)
+   Then send `sensors.txt` and `dump.txt`. They contain only hardware information.
+4. **What was confusing or annoying**, what you missed, and what you liked.
+
+## Uninstall
+
+1. If you turned on **Start at login**, turn it off in the menu first.
+2. Delete `specter.exe` / `specter`.
+3. Optional: delete the settings folder, `%LOCALAPPDATA%\specter` (Windows) or
+   `~/.config/specter` (Linux).
+
+## Run from source
 
 Requires Python 3.8+ with Tkinter. On Linux, prefer the system Python (`python3-tk`): its Tk draws
 smooth fonts and uses your cursor theme, while the Tk bundled with uv-managed Pythons does not.
@@ -60,7 +120,7 @@ python3 -m venv .venv           # or: uv venv --python /usr/bin/python3
 .venv/bin/specter               # or: .venv/bin/python -m specter
 ```
 
-Windows:
+Windows (in the Specter folder, in a normal, not administrator, terminal):
 
 ```bat
 py -m venv .venv
@@ -68,14 +128,11 @@ py -m venv .venv
 .venv\Scripts\specter
 ```
 
-(or `.venv\Scripts\python -m specter`)
-
 The `nvidia` extra installs `nvidia-ml-py` for NVIDIA GPU sensors (leave it out if you have no
-NVIDIA card). AMD and Intel GPUs need nothing extra. On Windows, also see
-[Set up LibreHardwareMonitor](docs/sensors.md#set-up-librehardwaremonitor) for temperatures and
-fans.
+NVIDIA card). AMD and Intel GPUs need nothing extra. The sensor report works the same way:
+`specter --sensors` and `specter --dump`.
 
-### A single-file program
+### Building the single-file program
 
 ```bash
 pip install -e ".[nvidia,build]"
@@ -87,26 +144,10 @@ least the glibc of the machine that built it. Windows builds must be made on Win
 
 ## Known limits
 
-- **Opacity needs a compositor.** On Linux/X11 that is KWin, Mutter, Picom and so on. Without one
-  the panel stays fully opaque.
-- **Windows temperatures and fans** work best with LibreHardwareMonitor running. Without it you
-  get at most an approximate CPU temperature (ACPI thermal zone, not on every PC) and no fans.
-- **Intel GPU load on Linux is approximate** (shown with "~"): it is the GPU clock, because the
-  real load counter needs root.
-- **Windows support is still young.** It has been tried on one Intel laptop so far; see the
-  [tested hardware](docs/sensors.md#tested-hardware) list.
+- Windows temperatures and fans are best with LibreHardwareMonitor running (see Troubleshooting).
 - Click-through works on X11 and Windows, not on Wayland.
-- Many laptops (e.g. HP EliteBook) don't report fan speed to Windows at all, so there is no FAN tile.
-
-## Diagnostics
-
-```bash
-specter --sensors     # which sensor sources work here, and the values they give
-specter --dump        # raw sensor data for bug reports
-```
-
-A sensor is missing or wrong? Paste both outputs into a GitHub issue, see
-[Reporting a missing sensor](docs/sensors.md#reporting-a-missing-sensor).
+- Tested so far on a few machines only; see the [tested hardware](docs/sensors.md#tested-hardware)
+  list.
 
 ## Development
 
@@ -120,4 +161,5 @@ The icon is drawn by `tools/make_icon.py`.
 
 ## Roadmap
 
-More Windows testing (NVIDIA, AMD), alerts, themes, a detailed hardware specs view. See `PLAN.md`.
+Feedback from the first testers decides what comes next. Ideas: easier install (installer, app
+menu entry), alerts, themes, a detailed hardware specs view. See `PLAN.md`.
