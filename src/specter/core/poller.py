@@ -30,6 +30,11 @@ class Poller:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="specter-poller", daemon=True)
 
+    def set_interval(self, interval_ms: int) -> None:
+        """Change the polling interval. Safe from any thread (it only swaps a float);
+        the new value is used from the next wait on."""
+        self._interval = max(250, interval_ms) / 1000
+
     def start(self) -> None:
         self._thread.start()
 

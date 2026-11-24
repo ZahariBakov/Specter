@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
+from typing import List
 
 from platformdirs import user_config_dir
 
 log = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(user_config_dir("specter", appauthor=False)) / "config.json"
+
+DEFAULT_HIDDEN_TILES = ["disk", "fan"]  # CPU, GPU, RAM and NET are shown by default
 
 
 @dataclass
@@ -22,6 +25,9 @@ class Config:
     pos_y: int | None = None
     width: int | None = None  # None = fit the content
     height: int | None = None
+    hidden_tiles: List[str] = field(default_factory=lambda: list(DEFAULT_HIDDEN_TILES))
+    locked: bool = False  # no moving or resizing
+    topmost: bool = True  # always on top
 
     @classmethod
     def load(cls, path: Path = CONFIG_PATH) -> Config:
@@ -32,6 +38,9 @@ class Config:
         except (OSError, ValueError):
             log.warning("Could not read %s, using defaults", path)
             return cls()
+        if not isinstance(data, dict):
+            log.warning("Unexpected content in %s, using defaults", path)
+            return cls()
         known = {f.name for f in fields(cls)}
         cfg = cls(**{k: v for k, v in data.items() if k in known})
         cfg.opacity = min(1.0, max(0.2, float(cfg.opacity)))
@@ -40,6 +49,12 @@ class Config:
             cfg.width = cfg.height = None
         else:  # the panel enlarges it to its minimum size if needed
             cfg.width, cfg.height = max(50, int(cfg.width)), max(50, int(cfg.height))
+        if isinstance(cfg.hidden_tiles, list):
+            cfg.hidden_tiles = [t for t in cfg.hidden_tiles if isinstance(t, str)]
+        else:
+            cfg.hidden_tiles = list(DEFAULT_HIDDEN_TILES)
+        cfg.locked = bool(cfg.locked)
+        cfg.topmost = bool(cfg.topmost)
         return cfg
 
     def save(self, path: Path = CONFIG_PATH) -> None:

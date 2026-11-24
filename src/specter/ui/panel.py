@@ -5,14 +5,16 @@ from __future__ import annotations
 import re
 import sys
 import tkinter as tk
-from typing import Callable, Tuple
+from typing import Callable, Iterable, Tuple
 
 from specter.core.models import Snapshot
 from specter.ui.layout import GAP_X, GAP_Y, choose_layout, fit_row, grid_size
-from specter.ui.popup import PopupMenu
+from specter.ui.popup import MenuHooks, PopupMenu
+from specter.ui.screen import clamp, clamp_point, screen_bounds
 from specter.ui.widgets import BG, BORDER, LABEL_FG, VALUE_FG, SlimTile, make_tile
 
 OPACITY_STEPS = [1.0, 0.85, 0.7, 0.55, 0.4]
+INTERVAL_STEPS = [500, 1000, 2000]  # ms between sensor reads
 DEFAULT_COLUMNS = 2  # layout used until the user resizes the panel
 PAD_X, PAD_Y = 14, 12  # frame padding
 CHROME_W, CHROME_H = 2 * (PAD_X + 1), 2 * (PAD_Y + 1)  # padding + 1 px border
@@ -62,17 +64,30 @@ class PanelWindow:
         root: tk.Tk,
         opacity: float = 0.85,
         size: Size | None = None,
-        on_opacity: Callable[[float], None] | None = None,
+        hidden_tiles: Iterable[str] = (),
+        locked: bool = False,
+        topmost: bool = True,
+        interval_ms: int = 1000,
+        on_interval: Callable[[int], None] | None = None,
+        on_change: Callable[[], None] | None = None,
         on_quit: Callable[[], None] | None = None,
     ) -> None:
+        """`on_change` is called after the user changes a setting in the menu (so the
+        app can save it right away)."""
         self.root = root
-        self._on_opacity = on_opacity
+        self._on_interval = on_interval
+        self._on_change = on_change
         self._on_quit = on_quit
+        self._hidden: set[str] = set(hidden_tiles)
+        self._locked = locked
+        self._topmost = topmost
+        self._interval = interval_ms
+        self._pos: Size | None = None  # where we last put the window
 
         root.title("Specter")
         root.configure(bg=BG)
         root.overrideredirect(True)  # no title bar / borders
-        root.attributes("-topmost", True)
+        root.attributes("-topmost", topmost)
         if sys.platform.startswith("linux"):
             root.attributes("-type", "utility")  # hint: no taskbar entry
 
@@ -82,6 +97,7 @@ class PanelWindow:
         self._frame.pack(fill="both", expand=True)
 
         self._tiles: dict[str, tk.Frame] = {}
+        self._labels: dict[str, str] = {}  # tile group -> name shown in the menu
         self._slim_tiles: dict[str, SlimTile] = {}  # the same devices, one line each
         self._cell: Size = (1, 1)  # largest tile seen so far (only grows, so the layout doesn't flicker)
         self._slim_widths: dict[str, int] = {}  # widest each slim tile has been
@@ -101,10 +117,22 @@ class PanelWindow:
 
         self._menu = PopupMenu(
             root,
-            OPACITY_STEPS,
-            get_opacity=self._opacity.get,
-            on_opacity=self.set_opacity,
-            on_quit=self._quit,
+            MenuHooks(
+                opacity_steps=OPACITY_STEPS,
+                get_opacity=self._opacity.get,
+                on_opacity=self._choose_opacity,
+                interval_steps=INTERVAL_STEPS,
+                get_interval=lambda: self._interval,
+                on_interval=self._choose_interval,
+                get_tiles=self.tile_choices,
+                on_tile=self.set_tile_shown,
+                get_locked=lambda: self._locked,
+                on_locked=self.set_locked,
+                get_topmost=lambda: self._topmost,
+                on_topmost=self.set_topmost,
+                on_reset_size=self.reset_size,
+                on_quit=self._quit,
+            ),
         )
 
         # Bound on the root window, so they fire for every widget inside it
@@ -135,22 +163,66 @@ class PanelWindow:
                 added = True
             tile.update_readings(readings)
             self._slim_tiles[group].update_readings(readings)
+            self._labels[group] = readings[0].label
 
-        if not self._tiles:
+        self._measure(force=added)
+
+    def _measure(self, force: bool = False, reset: bool = False) -> None:
+        """Re-measure the shown tiles and lay out again if their size changed.
+
+        `reset` forgets the sizes seen so far (the biggest cell only ever grows), for when
+        the set of shown tiles changes.
+        """
+        shown = self._shown()
+        if not shown:
             return
         self._frame.update_idletasks()  # so the tiles report their new size
+        old = (1, 1) if reset else self._cell
+        old_slim = {} if reset else self._slim_widths
+        old_slim_h = 1 if reset else self._slim_h
         cell = (
-            max(self._cell[0], max(t.winfo_reqwidth() for t in self._tiles.values())),
-            max(self._cell[1], max(t.winfo_reqheight() for t in self._tiles.values())),
+            max(old[0], max(self._tiles[g].winfo_reqwidth() for g in shown)),
+            max(old[1], max(self._tiles[g].winfo_reqheight() for g in shown)),
         )
         slim_widths = {
-            group: max(self._slim_widths.get(group, 0), tile.winfo_reqwidth())
-            for group, tile in self._slim_tiles.items()
+            g: max(old_slim.get(g, 0), self._slim_tiles[g].winfo_reqwidth()) for g in shown
         }
-        slim_h = max(self._slim_h, max(t.winfo_reqheight() for t in self._slim_tiles.values()))
-        if added or (cell, slim_widths, slim_h) != (self._cell, self._slim_widths, self._slim_h):
+        slim_h = max(old_slim_h, max(self._slim_tiles[g].winfo_reqheight() for g in shown))
+        if force or (cell, slim_widths, slim_h) != (self._cell, self._slim_widths, self._slim_h):
             self._cell, self._slim_widths, self._slim_h = cell, slim_widths, slim_h
-            self._relayout(force=added)
+            self._relayout(force=force)
+
+    # --- tiles the user can hide ----------------------------------------------
+
+    def _shown(self) -> list[str]:
+        """Tile groups on the panel, in display order. If everything is hidden (an edited
+        config file), show everything rather than an empty panel."""
+        groups = sorted(self._tiles, key=tile_sort_key)
+        shown = [g for g in groups if g not in self._hidden]
+        return shown or groups
+
+    def tile_choices(self) -> list[tuple[str, str, bool]]:
+        """(group, label, shown) for every tile, for the menu."""
+        shown = set(self._shown())
+        return [(g, self._labels.get(g, g.upper()), g in shown) for g in sorted(self._tiles, key=tile_sort_key)]
+
+    def hidden_tiles(self) -> list[str]:
+        return sorted(self._hidden)
+
+    def set_tile_shown(self, group: str, shown: bool) -> None:
+        """Show or hide one tile. The last shown tile can't be hidden."""
+        if group not in self._tiles:
+            return
+        if shown:
+            self._hidden.discard(group)
+        elif group in self._shown():
+            if len(self._shown()) == 1:
+                return
+            self._hidden.add(group)
+        else:
+            return
+        self._measure(force=True, reset=True)
+        self._changed()
 
     # --- size and layout ----------------------------------------------------
 
@@ -164,6 +236,12 @@ class PanelWindow:
     def set_size(self, width: int, height: int) -> None:
         self._size = (width, height)
         self._relayout()
+
+    def reset_size(self) -> None:
+        """Back to fitting the content."""
+        self._size = None
+        self._relayout()
+        self._changed()
 
     def _is_slim(self, height: int) -> bool:
         """Too short for one normal tile: show the slim strip."""
@@ -179,13 +257,13 @@ class PanelWindow:
         """
         slim = height is None or self._is_slim(height)
         cell_w = max(self._slim_widths.values(), default=1) if slim else self._cell[0]
-        if len(self._tiles) > 1:
+        if len(self._shown()) > 1:
             cell_w += self._arrows_width(slim)
         chrome_w = SLIM_CHROME_W if slim else CHROME_W
         return cell_w + chrome_w, self._slim_h + SLIM_CHROME_H
 
     def _relayout(self, force: bool = False) -> None:
-        count = len(self._tiles)
+        count = len(self._shown())
         if count == 0:
             return
         if self._size is None:
@@ -203,7 +281,7 @@ class PanelWindow:
             self._size = size
             slim = self._is_slim(height)
             if slim:  # one row, each tile as wide as it needs
-                widths = [self._slim_widths[g] for g in sorted(self._slim_widths, key=tile_sort_key)]
+                widths = [self._slim_widths[g] for g in self._shown()]
                 visible = fit_row(
                     widths, size[0] - SLIM_CHROME_W, self._arrows_width(True), self._first % count
                 )
@@ -228,6 +306,7 @@ class PanelWindow:
         if size != self._applied:
             self._applied = size
             self.root.geometry(f"{size[0]}x{size[1]}")
+            self._keep_on_screen()  # a bigger window may now stick out
         if force or layout != self._layout:
             self._layout = layout
             self._place_tiles()
@@ -237,7 +316,7 @@ class PanelWindow:
         for widget in frame.grid_slaves():
             widget.grid_forget()
         source = self._slim_tiles if self._slim else self._tiles
-        tiles = [source[group] for group in sorted(source, key=tile_sort_key)]
+        tiles = [source[group] for group in self._shown()]
         arrows = self._slim_arrows if self._slim else self._big_arrows
         for i in range(len(tiles) + 3):
             frame.columnconfigure(i, weight=0)
@@ -293,8 +372,9 @@ class PanelWindow:
         return arrow
 
     def _cycle(self, step: int) -> None:
-        if self._layout and self._layout[0] < len(self._tiles):
-            self._first = (self._first + step) % len(self._tiles)
+        count = len(self._shown())
+        if self._layout and self._layout[0] < count:
+            self._first = (self._first + step) % count
             self._relayout(force=True)  # the slim strip may fit a different number of tiles
 
     # --- opacity ------------------------------------------------------------
@@ -304,13 +384,59 @@ class PanelWindow:
         self._opacity.set(value)
         # Linux/X11 needs a running compositor for this to have any effect.
         self.root.attributes("-alpha", value)
-        if self._on_opacity:
-            self._on_opacity(value)
+
+    def opacity(self) -> float:
+        return self._opacity.get()
+
+    def _choose_opacity(self, value: float) -> None:
+        self.set_opacity(value)
+        self._changed()
+
+    # --- other settings -------------------------------------------------------
+
+    @property
+    def locked(self) -> bool:
+        return self._locked
+
+    @property
+    def topmost(self) -> bool:
+        return self._topmost
+
+    def set_locked(self, locked: bool) -> None:
+        """Locked: the panel can't be moved or resized (the menu still works)."""
+        self._locked = locked
+        self._drag_start = self._resize_start = None
+        self._set_cursor("")
+        self._changed()
+
+    def set_topmost(self, topmost: bool) -> None:
+        self._topmost = topmost
+        self.root.attributes("-topmost", topmost)
+        self._changed()
+
+    def _choose_interval(self, interval_ms: int) -> None:
+        self._interval = interval_ms
+        if self._on_interval:
+            self._on_interval(interval_ms)
+        self._changed()
+
+    def _changed(self) -> None:
+        if self._on_change:
+            self._on_change()
 
     # --- position -----------------------------------------------------------
 
     def move_to(self, x: int, y: int) -> None:
+        """Move the window, but never off the desktop (all monitors together)."""
+        width, height = self.current_size()
+        x, y = clamp(x, y, width, height, screen_bounds(self.root))
+        self._pos = (x, y)
         self.root.geometry(f"+{x}+{y}")
+
+    def _keep_on_screen(self) -> None:
+        """After a size change, pull the window back in if it now sticks out."""
+        if self._pos is not None:
+            self.move_to(*self._pos)
 
     def position(self) -> tuple[int, int]:
         return self.root.winfo_x(), self.root.winfo_y()
@@ -333,10 +459,12 @@ class PanelWindow:
             self.root.configure(cursor=cursor)
 
     def _hover(self, event: tk.Event) -> None:
-        self._set_cursor(_RESIZE_CURSORS.get(self._edges(event), ""))
+        self._set_cursor("" if self._locked else _RESIZE_CURSORS.get(self._edges(event), ""))
 
     def _press(self, event: tk.Event) -> None:
         self._hide_menu()
+        if self._locked:
+            return
         edges = self._edges(event)
         if edges != (0, 0):
             self._resize_start = (
@@ -364,7 +492,9 @@ class PanelWindow:
 
     def _resize_to(self, event: tk.Event) -> None:
         (ex, ey), px, py, x, y, width, height = self._resize_start
-        dx, dy = event.x_root - px, event.y_root - py
+        # The pointer can't drag an edge out of the desktop.
+        pointer_x, pointer_y = clamp_point(event.x_root, event.y_root, screen_bounds(self.root))
+        dx, dy = pointer_x - px, pointer_y - py
         _, min_h = self.min_size()
         if ey == 1:
             height = max(min_h, height + dy)
@@ -380,10 +510,12 @@ class PanelWindow:
             x += width - new_w  # the left edge moves, the right edge stays
             width = new_w
         self._size = self._applied = (width, height)
+        self._pos = (x, y)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         self._relayout()
 
     def _release(self, event: tk.Event) -> None:
+        self._keep_on_screen()  # e.g. the minimum size made the window stick out
         self._drag_start = None
         self._resize_start = None
         self._hover(event)  # back to the normal arrow (or an edge cursor)

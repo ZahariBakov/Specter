@@ -53,3 +53,39 @@ def test_config_size_needs_both_values(tmp_path):
     assert (Config.load(path).width, Config.load(path).height) == (300, 120)
     path.write_text('{"width": 300}')
     assert (Config.load(path).width, Config.load(path).height) == (None, None)
+
+
+def test_config_new_settings_roundtrip(tmp_path):
+    path = tmp_path / "config.json"
+    Config(hidden_tiles=["net"], locked=True, topmost=False).save(path)
+    loaded = Config.load(path)
+    assert (loaded.hidden_tiles, loaded.locked, loaded.topmost) == (["net"], True, False)
+
+
+def test_old_config_without_new_settings_uses_defaults(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"opacity": 0.7, "pos_x": 5, "pos_y": 6}')
+    loaded = Config.load(path)
+    assert loaded.opacity == 0.7
+    assert loaded.hidden_tiles == ["disk", "fan"]
+    assert (loaded.locked, loaded.topmost) == (False, True)
+
+
+def test_config_ignores_bad_new_values(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"hidden_tiles": "cpu", "locked": 1}')
+    assert Config.load(path).hidden_tiles == ["disk", "fan"]
+    path.write_text('{"hidden_tiles": ["cpu", 3, null]}')
+    assert Config.load(path).hidden_tiles == ["cpu"]
+    path.write_text("[1, 2]")
+    assert Config.load(path) == Config()
+
+
+def test_poller_interval_can_change():
+    from specter.core.poller import Poller
+
+    poller = Poller([], on_snapshot=lambda s: None, interval_ms=1000)
+    poller.set_interval(500)
+    assert poller._interval == 0.5
+    poller.set_interval(10)  # too fast: limited to 250 ms
+    assert poller._interval == 0.25

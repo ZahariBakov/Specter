@@ -5,7 +5,8 @@ screenshot check, and is committed by the user before the next one starts.
 
 **Done so far:** CPU load + RAM, CPU temperature + fan (`linux_hwmon.py`), drag, opacity, popup
 menu, config, resizable panel (row / column / grid, then 2 → 1 tiles with ‹ › arrows),
-Phase 1 (NVIDIA GPU, rate tiles, disk and network speed), slim strip at taskbar height.
+Phase 1 (NVIDIA GPU, rate tiles, disk and network speed), slim strip at taskbar height,
+Step 5 (popup settings, screen-edge limit).
 
 Defaults used below for the open decisions (change them before the step that needs them):
 
@@ -72,7 +73,7 @@ Defaults used below for the open decisions (change them before the step that nee
 
 ## Phase 2 — panel usability
 
-### Step 5. Settings in the popup menu
+### Step 5. Settings in the popup menu ✅ (2026-11-24)
 **Files:** `ui/popup.py`, `config.py`, `ui/panel.py`, `app.py`
 
 - New `Config` fields: `hidden_tiles: list[str]`, `locked: bool`, `topmost: bool`,
@@ -84,6 +85,9 @@ Defaults used below for the open decisions (change them before the step that nee
   - **Reset size** (back to auto-fit), then **Quit**.
 - Locked: no move, no resize, edge cursors off. The menu still works.
 - Save the config right away when a setting changes, not only on Quit (a crash loses nothing).
+- **Added:** the panel can't leave the desktop (all monitors together, `ui/screen.py`), so it stops
+  at the outer edges but still moves across 2–3 screens. Resizing and the menu are kept inside too.
+  Windows uses `GetSystemMetrics` for the virtual screen (untested, Step 9).
 - **Tests:** config round-trip with the new fields; old config file without them still loads.
 
 ### Step 6. Small panel improvements
