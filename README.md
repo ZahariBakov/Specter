@@ -98,6 +98,8 @@ Thank you for testing! The most useful things to send (as a
 
    (Linux: `./specter --sensors > sensors.txt` and `./specter --dump > dump.txt`.)
    Then send `sensors.txt` and `dump.txt`. They contain only hardware information.
+   (If `sensors.txt` stays empty on Windows, look for `specter-sensors.txt` and `specter-dump.txt`
+   in the same folder: Specter writes them there when it has no console.)
 4. **What was confusing or annoying**, what you missed, and what you liked.
 
 ## Uninstall

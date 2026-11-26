@@ -154,7 +154,8 @@ class FakeCountersBackend:
         pass
 
 
-def test_hub_merges_lhm_temp_into_counters_gpu():
+def test_hub_merges_lhm_temp_into_counters_gpu(monkeypatch):
+    monkeypatch.setattr(lhm.sys, "platform", "win32")  # the LHM backend is Windows-only
     lhm_sensors = [
         LhmSensor("Intel(R) Iris(R) Xe Graphics", "gpu-intel", "Load", "GPU Core", 99.0, "%"),
         LhmSensor("Intel(R) Iris(R) Xe Graphics", "gpu-intel", "Temperature", "GPU Core", 48.0, "°C"),

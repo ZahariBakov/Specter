@@ -39,6 +39,26 @@ def _set_dpi_aware() -> None:
         logging.getLogger(__name__).info("Could not set DPI awareness", exc_info=True)
 
 
+def _emit(text: str, fallback_name: str) -> None:
+    """Print a report; without a console (the windowed Windows .exe) write it to a file instead.
+
+    A windowed PyInstaller build may have no stdout at all, so `specter.exe --sensors > x.txt`
+    would leave x.txt empty. The report then lands in `fallback_name` in the current folder.
+    """
+    out = sys.stdout
+    if out is not None:
+        try:
+            out.write(text + "\n")
+            out.flush()
+            return
+        except (OSError, ValueError, AttributeError):
+            pass
+    try:
+        Path(fallback_name).write_text(text + "\n", encoding="utf-8")
+    except OSError:
+        logging.getLogger(__name__).info("Could not write %s", fallback_name, exc_info=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -50,9 +70,9 @@ def main(argv: list[str] | None = None) -> int:
         from specter import diagnostics
 
         if args.sensors:
-            print(diagnostics.sensors_report())
+            _emit(diagnostics.sensors_report(), "specter-sensors.txt")
         if args.dump:
-            print(diagnostics.dump_report())
+            _emit(diagnostics.dump_report(), "specter-dump.txt")
         return 0
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")

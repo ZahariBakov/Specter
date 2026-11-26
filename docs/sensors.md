@@ -94,7 +94,7 @@ http://localhost:8085/data.json`. That is fine: Specter then falls back to the s
 
 | OS | CPU | GPU | Status |
 |---|---|---|---|
-| Linux (Ubuntu 20.04, KDE/X11) | Intel Core i-series | NVIDIA T600 | Tested before the sensor rewrite (CPU load and temperature, RAM, fan, disk, net, GPU load/memory/temperature). **Needs a re-test.** |
+| Linux (Ubuntu 20.04, KDE/X11) | Intel Core i-series (coretemp, nct6106 fan) | Intel iGPU (i915) + NVIDIA T600 | Re-tested after the rewrite (2026-11-26): CPU load and temperature, RAM, fan, disk, net; T600 load/memory/temperature (fan % in `--sensors` only); Intel iGPU as `~NN%` clock estimate, its own tile. Source and PyInstaller build. |
 | Windows 11 (laptop) | Intel Core | Intel Iris Xe | Tested: CPU load, RAM, disk, net, GPU load and memory, CPU temperature via the thermal zone. LibreHardwareMonitor not tried yet. |
 | Linux / Windows | AMD Ryzen | - | Not tested yet |
 | Linux / Windows | - | AMD Radeon | Not tested yet |

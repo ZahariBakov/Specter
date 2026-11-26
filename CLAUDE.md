@@ -118,14 +118,19 @@ Windows dev setup: `py -m venv .venv`, `.venv\Scripts\pip install -e ".[dev,nvid
 runs), Start at login (HKCU Run key), DPI awareness (`_set_dpi_aware()`, system-aware). 231 tests.
 This test PC: HP EliteBook 850 G8, 1920x1080 at 125 %. Windows exposes no fan here (no `Win32_Fan`, no
 ACPI fan device); HP's BIOS WMI (`root\HP\InstrumentedBIOS`) needs admin: waiting for the user's output.
+2026-11-26: **Linux re-test after the sensor rewrite done** on the Ubuntu box: `--sensors`, panel and the
+PyInstaller build (`dist/specter`, 10.5 MB) all work. This box has an Intel iGPU too, so it shows two GPU
+tiles (INTEL `~NN%`, T600). Fixed `test_hub_merges_lhm_temp_into_counters_gpu` (passed only on Windows).
+`--sensors`/`--dump` fall back to `specter-sensors.txt`/`specter-dump.txt` when stdout is None (windowed exe;
+not yet checked on Windows). 225 tests. No GitHub Release exists yet (the README links to one).
 
 # Plan
 
 The step-by-step plan is in **`PLAN.md`** (read it at the start of a session). Do the next
 unfinished step, then mark it done in `PLAN.md` and update "Current state" above.
 
-**Next:** re-test Linux on the Ubuntu box after the sensor rewrite (and its build), tick the Step 9
-Windows checklist by hand, decide the HP fan source, the user tags `v0.2.0`, then the "Later" list
+**Next:** the first GitHub Release (`specter.exe` + Linux `specter`), check `specter.exe --sensors` on
+Windows, tick the Step 9 Windows checklist by hand, decide the HP fan source, the user tags `v0.2.0`, then the "Later" list
 (alerts, themes, specs view).
 
 Machine facts for the plan: NVIDIA T600 4 GB, driver 495 (NVML works). Network interfaces

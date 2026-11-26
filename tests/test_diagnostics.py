@@ -113,3 +113,17 @@ def test_main_sensors_flag(monkeypatch, capsys):
     monkeypatch.setattr(diagnostics, "sensors_report", lambda delay=1.2: "REPORT")
     assert app.main(["--sensors"]) == 0
     assert "REPORT" in capsys.readouterr().out
+
+
+def test_emit_prints_when_there_is_a_console(monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(tmp_path)
+    app._emit("report", "out.txt")
+    assert capsys.readouterr().out == "report\n"
+    assert not (tmp_path / "out.txt").exists()
+
+
+def test_emit_writes_a_file_without_a_console(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(app.sys, "stdout", None)  # windowed Windows .exe
+    app._emit("cpu.temp 40 °C", "out.txt")
+    assert (tmp_path / "out.txt").read_text(encoding="utf-8") == "cpu.temp 40 °C\n"

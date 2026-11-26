@@ -151,7 +151,9 @@ virtual-screen bounds via `GetSystemMetrics` (`ui/screen.py`).
 
 ### Step 11. Builds (Linux done 2026-11-24, Windows done 2026-11-24)
 Windows: `python tools\build.py` -> `dist\specter.exe` (12.4 MB, PyInstaller 6.22, Python 3.14), starts and
-shows the panel. Still to do: test the Linux build again after Phase 5, optional GitHub Actions.
+shows the panel. Linux build re-tested after Phase 5 on 2026-11-26 (10.5 MB, `--sensors` and panel OK).
+`--sensors`/`--dump` write `specter-sensors.txt`/`specter-dump.txt` when there is no stdout (windowed exe):
+check on Windows. Still to do: a GitHub Release with both files, optional GitHub Actions, test on a newer distro.
 Done: `tools/build.py` (PyInstaller one-file, `pip install -e ".[build]"`), icon `src/specter/assets/icon.png`
 + `icon.ico` from `tools/make_icon.py`, the app sets it as window icon. Linux build ran fine here
 (10 MB). Still to do: test it on a newer distro, Windows build, optional GitHub Actions.
@@ -180,8 +182,8 @@ Original notes:
 
 All steps 18-24 are implemented and unit tested (216 tests). Checked live on Windows 11 + Intel Iris Xe:
 GPU load/memory (counters), CPU temperature (ACPI zone), LibreHardwareMonitor client not reachable
-(not installed). **Still to check on real hardware:** the Linux rewrite (`linux_sysfs.py`,
-`linux_drm_gpu.py`) on the Ubuntu/T600 box, LibreHardwareMonitor running, and an iGPU + dGPU PC.
+(not installed). Linux rewrite checked on the Ubuntu box 2026-11-26 (coretemp, nct6106 fan, i915 iGPU +
+T600 = an iGPU + dGPU PC; both GPU tiles show). **Still to check on real hardware:** LibreHardwareMonitor running.
 
 Goal: Specter shows CPU, GPU, temperature and fan values on **any** Linux or Windows PC that exposes
 them, whatever the vendor. Found on the first Windows run (Intel Iris Xe laptop, no admin):
